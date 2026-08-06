@@ -57,7 +57,7 @@ export default function Login({ onLogin }: LoginProps) {
         className="relative z-10 w-full max-w-sm"
       >
         <motion.div variants={item} className="flex flex-col items-center text-center">
-          <Logo size={96} radius="rounded-3xl" />
+          <Logo size={128} radius="rounded-3xl" />
           <h1 className="mt-4 font-display text-3xl font-bold tracking-tight text-mist-100">Luma</h1>
           <p className="mt-1 text-sm text-mist-500">{t('login.title')}</p>
         </motion.div>
