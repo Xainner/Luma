@@ -8,9 +8,10 @@ interface ApiKeyFieldProps {
   value: string
   onChange: (value: string) => void
   disabled?: boolean
+  hasStored?: boolean
 }
 
-export default function ApiKeyField({ id, value, onChange, disabled }: ApiKeyFieldProps) {
+export default function ApiKeyField({ id, value, onChange, disabled, hasStored }: ApiKeyFieldProps) {
   const { t } = useI18n()
   const [show, setShow] = useState(false)
   return (
@@ -26,7 +27,7 @@ export default function ApiKeyField({ id, value, onChange, disabled }: ApiKeyFie
           spellCheck={false}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={t('apikey.placeholder')}
+          placeholder={hasStored && !value ? t('apikey.stored') : t('apikey.placeholder')}
           disabled={disabled}
           className={`${inputClass} ${disabled ? 'opacity-60' : ''} pr-11`}
         />

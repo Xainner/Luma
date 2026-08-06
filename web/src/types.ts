@@ -48,8 +48,6 @@ export interface ChatMeta {
   updatedAt: number
 }
 
-export const MASKED_KEY = '********'
-
 export type ConfigScope = 'global' | 'user'
 
 export type Language = 'es' | 'en'

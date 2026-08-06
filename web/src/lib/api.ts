@@ -84,6 +84,7 @@ export async function me(): Promise<User | null> {
 
 export interface ConfigResponse {
   config: AppConfig
+  apiKeySet: boolean
   scope: ConfigScope
   isAdmin: boolean
 }

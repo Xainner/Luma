@@ -174,6 +174,9 @@ export const es = {
   'apikey.label': 'API key',
   'apikey.optional': '(opcional)',
   'apikey.placeholder': 'sk-…',
+  'apikey.stored': '•••••••• (guardada)',
+  'apikey.remove': 'Quitar API key',
+  'apikey.confirmRemove': '¿Quitar?',
   'apikey.show': 'Mostrar API key',
   'apikey.hide': 'Ocultar API key',
 } as const

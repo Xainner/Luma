@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Check, Info, Loader2, RefreshCw, Save, Trash2 } from 'lucide-react'
 import type { AppConfig, ConfigMeta, Language, Profile, User } from '../types'
-import { MASKED_KEY } from '../types'
 import { useI18n } from '../i18n'
 import { inputClass, labelClass } from '../lib/ui'
 import AdminPanel from './AdminPanel'
@@ -11,6 +10,7 @@ import ProfilesManager from './ProfilesManager'
 
 interface SettingsViewProps {
   config: AppConfig
+  apiKeySet: boolean
   models: string[]
   profiles: Profile[]
   user: User
@@ -30,6 +30,7 @@ interface SettingsViewProps {
 
 export default function SettingsView({
   config,
+  apiKeySet,
   models,
   profiles,
   user,
@@ -48,7 +49,8 @@ export default function SettingsView({
 }: SettingsViewProps) {
   const { t } = useI18n()
   const [baseUrl, setBaseUrl] = useState(config.baseUrl)
-  const [apiKey, setApiKey] = useState(config.apiKey)
+  const [apiKey, setApiKey] = useState('')
+  const [clearKey, setClearKey] = useState(false)
   const [model, setModel] = useState(config.model)
   const [temperature, setTemperature] = useState(config.temperature)
   const [maxTokens, setMaxTokens] = useState(config.maxTokens)
@@ -65,18 +67,19 @@ export default function SettingsView({
     () =>
       baseUrl !== config.baseUrl ||
       apiKey !== config.apiKey ||
+      clearKey ||
       model !== config.model ||
       temperature !== config.temperature ||
       maxTokens !== config.maxTokens ||
       profileId !== config.profileId,
-    [config, baseUrl, apiKey, model, temperature, maxTokens, profileId],
+    [config, baseUrl, apiKey, clearKey, model, temperature, maxTokens, profileId],
   )
 
   async function handleDiscover() {
     setDiscoverError('')
     setDiscovering(true)
     try {
-      const found = await onDiscover(baseUrl, apiKey === MASKED_KEY ? undefined : apiKey)
+      const found = await onDiscover(baseUrl, apiKey || undefined)
       if (found.length === 0) setDiscoverError(t('settings.noModels'))
       else setModel((prev) => (found.includes(prev) ? prev : found[0]))
     } catch (err) {
@@ -91,15 +94,18 @@ export default function SettingsView({
     setSaving(true)
     setSaved(false)
     try {
-      await onSave({
+      const payload = {
         ...config,
         baseUrl: baseUrl.trim(),
-        apiKey: apiKey === MASKED_KEY ? config.apiKey : apiKey.trim(),
+        apiKey: apiKey.trim(),
+        clearApiKey: clearKey,
         model,
         temperature,
         maxTokens: Math.max(1, Math.floor(Number(maxTokens) || 4096)),
         profileId,
-      })
+      } as AppConfig & { clearApiKey?: boolean }
+      await onSave(payload)
+      if (clearKey) setClearKey(false)
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
@@ -185,7 +191,23 @@ export default function SettingsView({
                 />
               </div>
 
-              <ApiKeyField id="st-key" value={apiKey} onChange={setApiKey} disabled={readOnly} />
+              <div>
+                <ApiKeyField id="st-key" value={apiKey} onChange={setApiKey} disabled={readOnly} hasStored={apiKeySet} />
+                {apiKeySet && !readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => setClearKey((v) => !v)}
+                    className={`mt-2 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                      clearKey
+                        ? 'border-red-500 bg-red-500 text-white'
+                        : 'border-red-500/40 text-red-300 hover:bg-red-500/15'
+                    }`}
+                  >
+                    <Trash2 size={12} />
+                    {clearKey ? t('apikey.confirmRemove') : t('apikey.remove')}
+                  </button>
+                )}
+              </div>
 
               <div className="flex items-end gap-2">
                 <div className="min-w-0 flex-1">

@@ -51,6 +51,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null)
   const [config, setConfig] = useState<AppConfig | null>(null)
   const [configMeta, setConfigMeta] = useState<ConfigMeta>({ scope: 'global', isAdmin: false })
+  const [apiKeySet, setApiKeySet] = useState(false)
   const [booted, setBooted] = useState(false)
   const [chats, setChats] = useState<ChatMeta[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -89,6 +90,7 @@ export default function App() {
         if (cancelled) return
         setConfig(cfgResp.config)
         setConfigMeta({ scope: cfgResp.scope, isAdmin: cfgResp.isAdmin })
+        setApiKeySet(cfgResp.apiKeySet)
         const [chatsList, profilesList] = await Promise.all([listChats(), listProfiles()])
         if (cancelled) return
         setChats(chatsList)
@@ -113,6 +115,7 @@ export default function App() {
     const cfgResp = await getConfig()
     setConfig(cfgResp.config)
     setConfigMeta({ scope: cfgResp.scope, isAdmin: cfgResp.isAdmin })
+    setApiKeySet(cfgResp.apiKeySet)
     const [chatsList, profilesList] = await Promise.all([listChats(), listProfiles()])
     setChats(chatsList)
     setProfiles(profilesList)
@@ -142,6 +145,7 @@ export default function App() {
     const resp = await saveConfig(cfg)
     setConfig(resp.config)
     setConfigMeta({ scope: resp.scope, isAdmin: resp.isAdmin })
+    setApiKeySet(resp.apiKeySet)
     setView('chat')
     const [chatsList, profilesList] = await Promise.all([listChats(), listProfiles()])
     setChats(chatsList)
@@ -153,6 +157,7 @@ export default function App() {
     const resp = await saveConfig(cfg)
     setConfig(resp.config)
     setConfigMeta({ scope: resp.scope, isAdmin: resp.isAdmin })
+    setApiKeySet(resp.apiKeySet)
   }
 
   async function handleSetScope(scope: ConfigMeta['scope']) {
@@ -160,6 +165,7 @@ export default function App() {
     const resp = await getConfig()
     setConfig(resp.config)
     setConfigMeta({ scope: resp.scope, isAdmin: resp.isAdmin })
+    setApiKeySet(resp.apiKeySet)
   }
 
   async function handleSaveSystemPrompt(prompt: string) {
@@ -421,6 +427,7 @@ export default function App() {
               >
                 <SettingsView
                   config={config}
+                  apiKeySet={apiKeySet}
                   models={models}
                   profiles={profiles}
                   user={user}

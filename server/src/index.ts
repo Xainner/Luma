@@ -45,7 +45,6 @@ const WEB_DIST = process.env.WEB_DIST
 
 const PORT = Number(process.env.PORT ?? 3001)
 const HOST = process.env.HOST ?? '0.0.0.0'
-const MASK = '********'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -115,7 +114,7 @@ function requireAdmin(req: FastifyRequest, reply: FastifyReply) {
 }
 
 function publicConfig(config: AppConfig): AppConfig {
-  return { ...config, apiKey: config.apiKey ? MASK : '' }
+  return { ...config, apiKey: '' }
 }
 
 function sanitizeId(id: string): string {
@@ -153,12 +152,21 @@ function toApiMessages(messages: ChatMessage[], systemPrompt: string) {
   return out
 }
 
-function applyApiKeyMask(body: Partial<AppConfig>, currentKey: string): string {
-  return typeof body.apiKey !== 'string'
-    ? currentKey
-    : body.apiKey === MASK
-      ? currentKey
-      : body.apiKey.trim()
+type ConfigBody = Partial<AppConfig> & { clearApiKey?: boolean }
+
+function resolveApiKey(body: ConfigBody, currentKey: string): string {
+  if (body.clearApiKey) return ''
+  if (typeof body.apiKey === 'string' && body.apiKey.length > 0) return body.apiKey.trim()
+  return currentKey
+}
+
+function configResponse(effective: AppConfig, scope: ConfigScope, isAdmin: boolean) {
+  return {
+    config: publicConfig(effective),
+    apiKeySet: !!effective.apiKey,
+    scope,
+    isAdmin,
+  }
 }
 
 /* ---------- Auth ---------- */
@@ -190,27 +198,23 @@ app.get('/api/auth/me', async (req, reply) => {
 app.get('/api/config', async (req, reply) => {
   const user = userOf(req)
   const [effective, scope] = await Promise.all([loadEffectiveConfig(user), getConfigScope()])
-  return reply.send({
-    config: publicConfig(effective),
-    scope,
-    isAdmin: user.role === 'admin',
-  })
+  return reply.send(configResponse(effective, scope, user.role === 'admin'))
 })
 
 app.post('/api/config', async (req, reply) => {
   const user = userOf(req)
-  const body = (req.body ?? {}) as Partial<AppConfig>
+  const body = (req.body ?? {}) as ConfigBody
   const scope = await getConfigScope()
 
   if (scope === 'user') {
     const current = await loadUserConfig(user.id)
     const next: Partial<AppConfig> = {
       ...body,
-      apiKey: applyApiKeyMask(body, current.apiKey),
+      apiKey: resolveApiKey(body, current.apiKey),
     }
     await saveUserConfig(user.id, next)
     const effective = await loadEffectiveConfig(user)
-    return reply.send({ config: publicConfig(effective), scope, isAdmin: user.role === 'admin' })
+    return reply.send(configResponse(effective, scope, user.role === 'admin'))
   }
 
   if (user.role !== 'admin') {
@@ -219,10 +223,10 @@ app.post('/api/config', async (req, reply) => {
     })
   }
   const current = await loadGlobalConfig()
-  const next: AppConfig = { ...current, ...body, apiKey: applyApiKeyMask(body, current.apiKey) }
+  const next: AppConfig = { ...current, ...body, apiKey: resolveApiKey(body, current.apiKey) }
   await saveGlobalConfig(next)
   const effective = await loadEffectiveConfig(user)
-  return reply.send({ config: publicConfig(effective), scope, isAdmin: true })
+  return reply.send(configResponse(effective, scope, true))
 })
 
 /* ---------- Admin: scope, system prompt, users ---------- */

@@ -164,6 +164,9 @@ export const en: Record<I18nKey, string> = {
   'apikey.label': 'API key',
   'apikey.optional': '(optional)',
   'apikey.placeholder': 'sk-…',
+  'apikey.stored': '•••••••• (stored)',
+  'apikey.remove': 'Remove API key',
+  'apikey.confirmRemove': 'Remove?',
   'apikey.show': 'Show API key',
   'apikey.hide': 'Hide API key',
 }
