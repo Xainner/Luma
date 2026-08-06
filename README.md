@@ -1,5 +1,7 @@
 <div align="center">
 
+  <img src="web/public/logo.png" alt="Luma" width="130"/>
+
   <img src="https://img.shields.io/badge/status-en%20producci%C3%B3n-8b5cf6?style=flat-square" alt="Estado"/>
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=white" alt="React 19"/>
   <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript"/>
@@ -30,6 +32,7 @@ Hecho para tu LLM local, **sin censura ni restricciones**.
 - 🧠 **Descubrimiento de modelos** — consulta `GET /models` de tu servidor con un clic
 - 💬 **Sidebar con historial** — conversaciones persistentes, renombrado y borrado
 - 🛠️ **Ajustes completos** — URL base, API key, modelo, temperatura, tokens y prompt de sistema
+- 👤 **Perfiles** — master prompt adicional al system prompt, con emoji y color; perfil activo global
 - 🔐 **API key protegida** — nunca viaja al navegador; se guarda enmascarada en el backend
 - 🎨 **Diseño nebula** — dark theme con auroras, grano sutil, glassmorphism y micro-animaciones (framer-motion)
 
@@ -46,13 +49,26 @@ La app queda en **`http://localhost:17015`** (BD en `17016`).
 
 En el primer arranque se muestra un *onboarding*: pega la URL base de tu servidor (p. ej. `http://192.168.0.3:8021/v1`), opcionalmente tu API key y pulsa **Descubrir modelos** para seleccionar el tuyo.
 
+## 👤 Perfiles
+
+Cada **perfil** aporta un *master prompt* que se añade al *system prompt* de Ajustes en cada conversación:
+
+```
+system prompt (Ajustes)  +  "\n\n"  +  master prompt (perfil activo)
+```
+
+- Se administran en **Ajustes → Perfiles**: nombre, emoji, color y master prompt
+- El perfil **activo** se elige desde el sidebar o desde Ajustes y aplica a todos los chats
+- Si no hay perfil activo, solo se usa el system prompt de Ajustes
+
 ## 🏗️ Arquitectura
 
 ```
 Luma/
 ├── web/          Frontend — React 19 + Vite + TypeScript + Tailwind v4 + framer-motion
+│   └── public/   Logo e íconos (logo.png, favicon.png)
 ├── server/       Backend  — Fastify 5 (proxy de streaming SSE, CRUD, modelos)
-│   └── src/db.ts Persistencia — PostgreSQL 16 (config + chats JSONB)
+│   └── src/db.ts Persistencia — PostgreSQL 16 (config, perfiles, chats JSONB)
 └── docker-compose.yml  App + Postgres, puertos 17015 / 17016
 ```
 
@@ -77,6 +93,10 @@ Luma/
 | PUT    | `/api/chats/:id`     | Actualizar conversación                    |
 | DELETE | `/api/chats/:id`     | Eliminar conversación                      |
 | DELETE | `/api/data`          | Borrar todos los chats                     |
+| GET    | `/api/profiles`      | Listar perfiles                            |
+| POST   | `/api/profiles`      | Crear perfil                               |
+| PUT    | `/api/profiles/:id`  | Actualizar perfil                          |
+| DELETE | `/api/profiles/:id`  | Eliminar perfil                            |
 
 ## 🛠️ Desarrollo local
 
