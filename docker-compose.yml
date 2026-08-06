@@ -1,0 +1,34 @@
+name: llm-chat
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: llm-chat-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-luma}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}
+      POSTGRES_DB: ${POSTGRES_DB:-luma}
+    volumes:
+      - ./db-data:/var/lib/postgresql/data
+    ports:
+      - "17016:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-luma} -d ${POSTGRES_DB:-luma}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  app:
+    build: .
+    container_name: llm-chat
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-luma}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-luma}
+      HOST: 0.0.0.0
+      PORT: 3001
+    ports:
+      - "17015:3001"
