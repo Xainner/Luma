@@ -5,19 +5,37 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import {
-  deleteAllChats,
+  checkPassword,
+  createSession,
+  createUser,
   deleteChat,
   deleteProfile,
+  deleteSession,
+  deleteUser,
+  deleteUserChats,
+  findUserByEmail,
   getChat,
+  getConfigScope,
   getProfile,
+  getUserByToken,
   initDb,
   listChats,
   listProfiles,
-  loadConfig,
+  listUsers,
+  loadEffectiveConfig,
+  loadGlobalConfig,
+  loadUserConfig,
   saveChat,
-  saveConfig,
+  saveGlobalConfig,
+  saveGlobalSystemPrompt,
   saveProfile,
+  saveUserConfig,
+  setConfigScope,
+  updateUserPassword,
+  updateUserRole,
+  type ConfigScope,
   type Profile,
+  type User,
 } from './db.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -28,6 +46,12 @@ const WEB_DIST = process.env.WEB_DIST
 const PORT = Number(process.env.PORT ?? 3001)
 const HOST = process.env.HOST ?? '0.0.0.0'
 const MASK = '********'
+
+declare module 'fastify' {
+  interface FastifyRequest {
+    user?: User
+  }
+}
 
 export interface AppConfig {
   baseUrl: string
@@ -60,6 +84,33 @@ export interface Chat {
   createdAt: number
   updatedAt: number
   messages: ChatMessage[]
+}
+
+const app = Fastify({ logger: true, bodyLimit: 50 * 1024 * 1024 })
+
+app.register(fastifyStatic, { root: WEB_DIST, prefix: '/', wildcard: false })
+
+/* ---------- Auth middleware ---------- */
+
+app.addHook('preHandler', async (req, reply) => {
+  const url = req.url
+  if (!url.startsWith('/api/') || url === '/api/auth/login') return
+  const header = req.headers.authorization
+  const token = header?.startsWith('Bearer ') ? header.slice(7) : null
+  const user = token ? await getUserByToken(token) : null
+  if (!user) return reply.code(401).send({ error: 'No autenticado.' })
+  req.user = user
+})
+
+function userOf(req: FastifyRequest): User {
+  if (!req.user) throw new Error('Sin usuario')
+  return req.user
+}
+
+function requireAdmin(req: FastifyRequest, reply: FastifyReply) {
+  if (req.user?.role !== 'admin') {
+    return reply.code(403).send({ error: 'Requiere rol de administrador.' })
+  }
 }
 
 function publicConfig(config: AppConfig): AppConfig {
@@ -101,130 +152,178 @@ function toApiMessages(messages: ChatMessage[], systemPrompt: string) {
   return out
 }
 
-const app = Fastify({ logger: true, bodyLimit: 50 * 1024 * 1024 })
+function applyApiKeyMask(body: Partial<AppConfig>, currentKey: string): string {
+  return typeof body.apiKey !== 'string'
+    ? currentKey
+    : body.apiKey === MASK
+      ? currentKey
+      : body.apiKey.trim()
+}
 
-app.register(fastifyStatic, { root: WEB_DIST, prefix: '/', wildcard: false })
+/* ---------- Auth ---------- */
+
+app.post('/api/auth/login', async (req, reply) => {
+  const { email, password } = (req.body ?? {}) as { email?: string; password?: string }
+  if (!email || !password) return reply.code(400).send({ error: 'Email y contraseña requeridos.' })
+  const user = await findUserByEmail(email.trim())
+  if (!user || !checkPassword(user, password)) {
+    return reply.code(401).send({ error: 'Credenciales inválidas.' })
+  }
+  const token = await createSession(user.id)
+  return reply.send({ token, user: { id: user.id, email: user.email, role: user.role } })
+})
+
+app.post('/api/auth/logout', async (req, reply) => {
+  const header = req.headers.authorization
+  const token = header?.startsWith('Bearer ') ? header.slice(7) : null
+  if (token) await deleteSession(token)
+  return reply.send({ ok: true })
+})
+
+app.get('/api/auth/me', async (req, reply) => {
+  return reply.send({ user: req.user ?? null })
+})
 
 /* ---------- Config ---------- */
 
-app.get('/api/config', async () => {
-  const config = await loadConfig()
-  return { config: publicConfig(config) }
+app.get('/api/config', async (req, reply) => {
+  const user = userOf(req)
+  const [effective, scope] = await Promise.all([loadEffectiveConfig(user), getConfigScope()])
+  return reply.send({
+    config: publicConfig(effective),
+    scope,
+    isAdmin: user.role === 'admin',
+  })
 })
 
-app.post(
-  '/api/config',
-  {
-    schema: {
-      body: {
-        type: 'object',
-        properties: {
-          baseUrl: { type: 'string' },
-          apiKey: { type: 'string' },
-          model: { type: 'string' },
-          temperature: { type: 'number', minimum: 0, maximum: 2 },
-          maxTokens: { type: 'integer', minimum: 1 },
-          systemPrompt: { type: 'string' },
-        },
-        additionalProperties: true,
-      },
-    },
-  },
-  async (req, reply) => {
-    const body = (req.body ?? {}) as Partial<AppConfig>
-    const current = await loadConfig()
-    const next: AppConfig = { ...current, ...body }
-    if (typeof body.apiKey === 'string') {
-      next.apiKey = body.apiKey === MASK && current.apiKey ? current.apiKey : body.apiKey.trim()
+app.post('/api/config', async (req, reply) => {
+  const user = userOf(req)
+  const body = (req.body ?? {}) as Partial<AppConfig>
+  const scope = await getConfigScope()
+
+  if (scope === 'user') {
+    const current = await loadUserConfig(user.id)
+    const next: Partial<AppConfig> = {
+      ...body,
+      apiKey: applyApiKeyMask(body, current.apiKey),
     }
-    await saveConfig(next)
-    return reply.send({ config: publicConfig(next) })
-  },
-)
+    delete (next as { systemPrompt?: string }).systemPrompt
+    await saveUserConfig(user.id, next)
+    const effective = await loadEffectiveConfig(user)
+    return reply.send({ config: publicConfig(effective), scope, isAdmin: user.role === 'admin' })
+  }
 
-/* ---------- Profiles ---------- */
-
-app.get('/api/profiles', async () => {
-  return { profiles: await listProfiles() }
+  if (user.role !== 'admin') {
+    return reply.code(403).send({
+      error: 'La configuración es global y solo el administrador puede modificarla.',
+    })
+  }
+  const current = await loadGlobalConfig()
+  const next: AppConfig = { ...current, ...body, apiKey: applyApiKeyMask(body, current.apiKey) }
+  delete (next as { systemPrompt?: string }).systemPrompt
+  await saveGlobalConfig(next)
+  const effective = await loadEffectiveConfig(user)
+  return reply.send({ config: publicConfig(effective), scope, isAdmin: true })
 })
 
-app.post(
-  '/api/profiles',
-  {
-    schema: {
-      body: {
-        type: 'object',
-        required: ['name'],
-        properties: {
-          name: { type: 'string', minLength: 1, maxLength: 80 },
-          masterPrompt: { type: 'string' },
-          emoji: { type: 'string', maxLength: 8 },
-          color: { type: 'string', maxLength: 16 },
-        },
-      },
-    },
-  },
-  async (req, reply) => {
-    const body = (req.body ?? {}) as Partial<Profile>
-    const profile: Profile = {
-      id: randomUUID(),
-      name: body.name ?? 'Nuevo perfil',
-      masterPrompt: body.masterPrompt ?? '',
-      emoji: body.emoji ?? '✨',
-      color: body.color ?? '#8b5cf6',
-    }
-    await saveProfile(profile)
-    return reply.send({ profile })
-  },
-)
+/* ---------- Admin: scope, system prompt, users ---------- */
 
 app.put(
-  '/api/profiles/:id',
-  {
-    schema: {
-      params: { type: 'object', required: ['id'], properties: { id: { type: 'string' } } },
-      body: {
-        type: 'object',
-        properties: {
-          name: { type: 'string', maxLength: 80 },
-          masterPrompt: { type: 'string' },
-          emoji: { type: 'string', maxLength: 8 },
-          color: { type: 'string', maxLength: 16 },
-        },
-      },
-    },
-  },
-  async (req: FastifyRequest<{ Params: { id: string }; Body: Partial<Profile> }>, reply) => {
-    const id = sanitizeId(req.params.id)
-    const existing = await getProfile(id)
-    if (!existing) return reply.code(404).send({ error: 'Perfil no encontrado.' })
-    const profile: Profile = { ...existing, ...(req.body ?? {}) }
-    await saveProfile(profile)
-    return reply.send({ profile })
+  '/api/admin/scope',
+  async (req, reply) => {
+    const denied = requireAdmin(req, reply)
+    if (denied) return denied
+    const { scope } = (req.body ?? {}) as { scope?: ConfigScope }
+    if (scope !== 'global' && scope !== 'user') {
+      return reply.code(400).send({ error: 'scope inválido.' })
+    }
+    await setConfigScope(scope)
+    return reply.send({ scope })
   },
 )
 
-app.delete('/api/profiles/:id', async (req: FastifyRequest<{ Params: { id: string } }>, reply) => {
-  const id = sanitizeId(req.params.id)
-  await deleteProfile(id)
-  const config = await loadConfig()
-  if (config.profileId === id) {
-    await saveConfig({ ...config, profileId: '' })
+app.put('/api/admin/system-prompt', async (req, reply) => {
+  const denied = requireAdmin(req, reply)
+  if (denied) return denied
+  const { systemPrompt } = (req.body ?? {}) as { systemPrompt?: string }
+  await saveGlobalSystemPrompt(systemPrompt ?? '')
+  return reply.send({ ok: true, systemPrompt: systemPrompt ?? '' })
+})
+
+app.get('/api/admin/users', async (req, reply) => {
+  const denied = requireAdmin(req, reply)
+  if (denied) return denied
+  return reply.send({ users: await listUsers() })
+})
+
+app.post('/api/admin/users', async (req, reply) => {
+  const denied = requireAdmin(req, reply)
+  if (denied) return denied
+  const { email, password, role } = (req.body ?? {}) as {
+    email?: string
+    password?: string
+    role?: User['role']
   }
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+    return reply.code(400).send({ error: 'Email inválido.' })
+  }
+  if (!password || password.length < 4) {
+    return reply.code(400).send({ error: 'La contraseña debe tener al menos 4 caracteres.' })
+  }
+  const user = await createUser(email.trim(), password, role === 'admin' ? 'admin' : 'user')
+  return reply.send({ user: { id: user.id, email: user.email, role: user.role } })
+})
+
+app.put('/api/admin/users/:id', async (req: FastifyRequest<{ Params: { id: string } }>, reply) => {
+  const denied = requireAdmin(req, reply)
+  if (denied) return denied
+  const id = sanitizeId(req.params.id)
+  const { role, password } = (req.body ?? {}) as { role?: User['role']; password?: string }
+  const me = userOf(req)
+
+  if (role && role !== 'admin' && role !== 'user') {
+    return reply.code(400).send({ error: 'Rol inválido.' })
+  }
+  if (id === me.id && role === 'user') {
+    return reply.code(400).send({ error: 'No puedes quitarte el rol de administrador.' })
+  }
+  if (role === 'user') {
+    const admins = (await listUsers()).filter((u) => u.role === 'admin')
+    if (admins.length === 1 && admins[0].id === id) {
+      return reply.code(400).send({ error: 'Debe existir al menos un administrador.' })
+    }
+  }
+  if (role) await updateUserRole(id, role)
+  if (typeof password === 'string' && password) await updateUserPassword(id, password)
+  return reply.send({ ok: true })
+})
+
+app.delete('/api/admin/users/:id', async (req: FastifyRequest<{ Params: { id: string } }>, reply) => {
+  const denied = requireAdmin(req, reply)
+  if (denied) return denied
+  const id = sanitizeId(req.params.id)
+  const me = userOf(req)
+  if (id === me.id) return reply.code(400).send({ error: 'No puedes eliminar tu propia cuenta.' })
+  const admins = (await listUsers()).filter((u) => u.role === 'admin')
+  if (admins.length === 1 && admins[0].id === id) {
+    return reply.code(400).send({ error: 'Debe existir al menos un administrador.' })
+  }
+  await deleteUser(id)
   return reply.send({ ok: true })
 })
 
 /* ---------- Model discovery ---------- */
 
 app.get('/api/models', async (req, reply) => {
-  const config = await loadConfig()
+  const user = userOf(req)
+  const effective = await loadEffectiveConfig(user)
   const hdrBase = req.headers['x-luma-base']
   const hdrKey = req.headers['x-luma-key']
   const baseUrl =
     typeof hdrBase === 'string' && hdrBase.trim()
       ? baseUrlOf({ baseUrl: hdrBase } as AppConfig)
-      : baseUrlOf(config)
-  const apiKey = typeof hdrKey === 'string' ? hdrKey : config.apiKey
+      : baseUrlOf(effective)
+  const apiKey = typeof hdrKey === 'string' ? hdrKey : effective.apiKey
   if (!baseUrl) return reply.code(400).send({ error: 'No hay una URL base configurada.' })
   try {
     const res = await fetch(`${baseUrl}/models`, {
@@ -262,102 +361,126 @@ function composeSystemPrompt(config: AppConfig, profile: Profile | null): string
     .join('\n\n')
 }
 
-app.post(
-  '/api/chat',
-  {
-    schema: {
-      body: {
-        type: 'object',
-        properties: {
-          messages: { type: 'array' },
-          model: { type: 'string' },
-          temperature: { type: 'number', minimum: 0, maximum: 2 },
-          maxTokens: { type: 'integer', minimum: 1 },
-        },
-        additionalProperties: true,
+app.post('/api/chat', async (req: FastifyRequest<{ Body: ChatBody }>, reply: FastifyReply) => {
+  const user = userOf(req)
+  const effective = await loadEffectiveConfig(user)
+  const baseUrl = baseUrlOf(effective)
+  if (!baseUrl) return reply.code(400).send({ error: 'No hay una URL base configurada.' })
+
+  const { messages, model, temperature, maxTokens } = req.body ?? {}
+  const profile = effective.profileId ? await getProfile(effective.profileId) : null
+  const systemPrompt = composeSystemPrompt(effective, profile)
+
+  const payload = {
+    model: model || effective.model,
+    messages: toApiMessages(messages ?? [], systemPrompt),
+    temperature: temperature ?? effective.temperature,
+    max_tokens: maxTokens ?? effective.maxTokens,
+    stream: true,
+  }
+
+  const upstreamController = new AbortController()
+  let upstream: Response
+  try {
+    upstream = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders(effective.apiKey),
       },
-    },
-  },
-  async (req: FastifyRequest<{ Body: ChatBody }>, reply: FastifyReply) => {
-    const config = await loadConfig()
-    const baseUrl = baseUrlOf(config)
-    if (!baseUrl) return reply.code(400).send({ error: 'No hay una URL base configurada.' })
-
-    const { messages, model, temperature, maxTokens } = req.body ?? {}
-    const profile = config.profileId ? await getProfile(config.profileId) : null
-    const systemPrompt = composeSystemPrompt(config, profile)
-
-    const payload = {
-      model: model || config.model,
-      messages: toApiMessages(messages ?? [], systemPrompt),
-      temperature: temperature ?? config.temperature,
-      max_tokens: maxTokens ?? config.maxTokens,
-      stream: true,
-    }
-
-    const upstreamController = new AbortController()
-    let upstream: Response
-    try {
-      upstream = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeaders(config.apiKey),
-        },
-        body: JSON.stringify(payload),
-        signal: upstreamController.signal,
-      })
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      return reply.code(502).send({ error: `No se pudo conectar: ${message}` })
-    }
-
-    if (!upstream.ok) {
-      const text = (await upstream.text().catch(() => '')).slice(0, 500)
-      return reply.code(502).send({ error: `El servidor respondió ${upstream.status}: ${text}` })
-    }
-
-    if (!upstream.body) {
-      return reply.code(502).send({ error: 'El servidor no devolvió un body de streaming.' })
-    }
-
-    reply.hijack()
-    reply.raw.writeHead(200, {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache, no-transform',
-      Connection: 'keep-alive',
-      'X-Accel-Buffering': 'no',
+      body: JSON.stringify(payload),
+      signal: upstreamController.signal,
     })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return reply.code(502).send({ error: `No se pudo conectar: ${message}` })
+  }
 
-    reply.raw.on('close', () => upstreamController.abort())
+  if (!upstream.ok) {
+    const text = (await upstream.text().catch(() => '')).slice(0, 500)
+    return reply.code(502).send({ error: `El servidor respondió ${upstream.status}: ${text}` })
+  }
 
-    const reader = upstream.body.getReader()
-    const decoder = new TextDecoder()
-    try {
-      for (;;) {
-        const { done, value } = await reader.read()
-        if (done) break
-        reply.raw.write(decoder.decode(value, { stream: true }))
-      }
-      reply.raw.end()
-    } catch {
-      try {
-        reply.raw.write(`data: ${JSON.stringify({ error: 'Conexión interrumpida con el LLM.' })}\n\n`)
-      } catch {
-        /* socket may be gone */
-      }
-      reply.raw.end()
+  if (!upstream.body) {
+    return reply.code(502).send({ error: 'El servidor no devolvió un body de streaming.' })
+  }
+
+  reply.hijack()
+  reply.raw.writeHead(200, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  })
+
+  reply.raw.on('close', () => upstreamController.abort())
+
+  const reader = upstream.body.getReader()
+  const decoder = new TextDecoder()
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      reply.raw.write(decoder.decode(value, { stream: true }))
     }
-  },
-)
-
-/* ---------- Chats CRUD ---------- */
-
-app.get('/api/chats', async () => {
-  return { chats: await listChats() }
+    reply.raw.end()
+  } catch {
+    try {
+      reply.raw.write(`data: ${JSON.stringify({ error: 'Conexión interrumpida con el LLM.' })}\n\n`)
+    } catch {
+      /* socket may be gone */
+    }
+    reply.raw.end()
+  }
 })
 
-app.post('/api/chats', async (_req, reply) => {
+/* ---------- Profiles (escritura solo admin) ---------- */
+
+app.get('/api/profiles', async (_req, reply) => {
+  return reply.send({ profiles: await listProfiles() })
+})
+
+app.post('/api/profiles', async (req, reply) => {
+  const denied = requireAdmin(req, reply)
+  if (denied) return denied
+  const body = (req.body ?? {}) as Partial<Profile>
+  const profile: Profile = {
+    id: randomUUID(),
+    name: body.name ?? 'Nuevo perfil',
+    masterPrompt: body.masterPrompt ?? '',
+    emoji: body.emoji ?? '✨',
+    color: body.color ?? '#8b5cf6',
+  }
+  await saveProfile(profile)
+  return reply.send({ profile })
+})
+
+app.put('/api/profiles/:id', async (req: FastifyRequest<{ Params: { id: string }; Body: Partial<Profile> }>, reply) => {
+  const denied = requireAdmin(req, reply)
+  if (denied) return denied
+  const id = sanitizeId(req.params.id)
+  const existing = await getProfile(id)
+  if (!existing) return reply.code(404).send({ error: 'Perfil no encontrado.' })
+  const profile: Profile = { ...existing, ...(req.body ?? {}) }
+  await saveProfile(profile)
+  return reply.send({ profile })
+})
+
+app.delete('/api/profiles/:id', async (req: FastifyRequest<{ Params: { id: string } }>, reply) => {
+  const denied = requireAdmin(req, reply)
+  if (denied) return denied
+  const id = sanitizeId(req.params.id)
+  await deleteProfile(id)
+  return reply.send({ ok: true })
+})
+
+/* ---------- Chats (por usuario) ---------- */
+
+app.get('/api/chats', async (req, reply) => {
+  return reply.send({ chats: await listChats(userOf(req).id) })
+})
+
+app.post('/api/chats', async (req, reply) => {
   const chat: Chat = {
     id: randomUUID(),
     title: '',
@@ -365,34 +488,34 @@ app.post('/api/chats', async (_req, reply) => {
     updatedAt: Date.now(),
     messages: [],
   }
-  await saveChat(chat)
+  await saveChat(chat, userOf(req).id)
   return reply.send({ chat })
 })
 
 app.get('/api/chats/:id', async (req: FastifyRequest<{ Params: { id: string } }>, reply) => {
   const id = sanitizeId(req.params.id)
-  const chat = await getChat(id)
+  const chat = await getChat(id, userOf(req).id)
   if (!chat) return reply.code(404).send({ error: 'Chat no encontrado.' })
   return reply.send({ chat })
 })
 
 app.put('/api/chats/:id', async (req: FastifyRequest<{ Params: { id: string }; Body: Chat }>, reply) => {
   const id = sanitizeId(req.params.id)
-  const existing = await getChat(id)
+  const existing = await getChat(id, userOf(req).id)
   if (!existing) return reply.code(404).send({ error: 'Chat no encontrado.' })
   const chat = { ...existing, ...(req.body ?? {}), id, updatedAt: Date.now() }
-  await saveChat(chat)
+  await saveChat(chat, userOf(req).id)
   return reply.send({ chat: { id, title: chat.title, updatedAt: chat.updatedAt } })
 })
 
 app.delete('/api/chats/:id', async (req: FastifyRequest<{ Params: { id: string } }>, reply) => {
   const id = sanitizeId(req.params.id)
-  await deleteChat(id)
+  await deleteChat(id, userOf(req).id)
   return reply.send({ ok: true })
 })
 
-app.delete('/api/data', async (_req, reply) => {
-  await deleteAllChats()
+app.delete('/api/data', async (req, reply) => {
+  await deleteUserChats(userOf(req).id)
   return reply.send({ ok: true })
 })
 

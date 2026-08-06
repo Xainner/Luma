@@ -6,9 +6,10 @@ interface ApiKeyFieldProps {
   id: string
   value: string
   onChange: (value: string) => void
+  disabled?: boolean
 }
 
-export default function ApiKeyField({ id, value, onChange }: ApiKeyFieldProps) {
+export default function ApiKeyField({ id, value, onChange, disabled }: ApiKeyFieldProps) {
   const [show, setShow] = useState(false)
   return (
     <div>
@@ -24,13 +25,15 @@ export default function ApiKeyField({ id, value, onChange }: ApiKeyFieldProps) {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="sk-…"
-          className={`${inputClass} pr-11`}
+          disabled={disabled}
+          className={`${inputClass} ${disabled ? 'opacity-60' : ''} pr-11`}
         />
         <button
           type="button"
           onClick={() => setShow((v) => !v)}
+          disabled={disabled}
           aria-label={show ? 'Ocultar API key' : 'Mostrar API key'}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-mist-500 transition-colors hover:text-mist-200"
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-mist-500 transition-colors hover:text-mist-200 disabled:opacity-40"
         >
           {show ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>

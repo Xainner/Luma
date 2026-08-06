@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { MessageSquare, Plus, Settings2, Trash2, X } from 'lucide-react'
-import type { ChatMeta, Profile } from '../types'
+import { LogOut, MessageSquare, Plus, Settings2, Trash2, X } from 'lucide-react'
+import type { ChatMeta, Profile, User } from '../types'
 import { labelClass } from '../lib/ui'
 import Logo from './Logo'
 
@@ -8,11 +8,13 @@ interface SidebarProps {
   chats: ChatMeta[]
   activeId: string | null
   open: boolean
+  user: User
   onClose: () => void
   onSelect: (id: string) => void
   onNew: () => void
   onDelete: (id: string) => void
   onOpenSettings: () => void
+  onLogout: () => void
   models: string[]
   model: string
   onModelChange: (model: string) => void
@@ -37,11 +39,13 @@ export default function Sidebar({
   chats,
   activeId,
   open,
+  user,
   onClose,
   onSelect,
   onNew,
   onDelete,
   onOpenSettings,
+  onLogout,
   models,
   model,
   onModelChange,
@@ -205,6 +209,25 @@ export default function Sidebar({
             <Settings2 size={17} />
             Ajustes
           </button>
+
+          <div className="mt-2 flex items-center gap-2.5 rounded-xl border-t border-white/8 pt-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-nebula-500/70 to-iris-600/70 text-sm font-bold text-white">
+              {user.email[0].toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-mist-100">{user.email}</p>
+              <p className="text-[11px] text-mist-600">{user.role === 'admin' ? 'Administrador' : 'Usuario'}</p>
+            </div>
+            <button
+              type="button"
+              onClick={onLogout}
+              aria-label="Cerrar sesión"
+              title="Cerrar sesión"
+              className="rounded-lg p-2 text-mist-500 transition-colors hover:bg-red-500/15 hover:text-red-400"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
       </aside>
     </>

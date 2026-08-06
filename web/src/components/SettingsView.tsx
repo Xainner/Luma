@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Check, Loader2, RefreshCw, Save, Trash2 } from 'lucide-react'
-import type { AppConfig, Profile } from '../types'
+import { ArrowLeft, Check, Info, Loader2, RefreshCw, Save, Trash2 } from 'lucide-react'
+import type { AppConfig, ConfigMeta, Profile, User } from '../types'
 import { MASKED_KEY } from '../types'
 import { inputClass, labelClass } from '../lib/ui'
+import AdminPanel from './AdminPanel'
 import ApiKeyField from './ApiKeyField'
 import ProfilesManager from './ProfilesManager'
 
@@ -11,6 +12,8 @@ interface SettingsViewProps {
   config: AppConfig
   models: string[]
   profiles: Profile[]
+  user: User
+  meta: ConfigMeta
   onDiscover: (baseUrl?: string, apiKey?: string) => Promise<string[]>
   onSave: (config: AppConfig) => Promise<void>
   onBack: () => void
@@ -19,12 +22,16 @@ interface SettingsViewProps {
   onUpdateProfile: (profile: Profile) => Promise<void>
   onDeleteProfile: (id: string) => Promise<void>
   onSetProfile: (id: string) => void
+  onSetScope: (scope: ConfigMeta['scope']) => Promise<void>
+  onSaveSystemPrompt: (prompt: string) => Promise<void>
 }
 
 export default function SettingsView({
   config,
   models,
   profiles,
+  user,
+  meta,
   onDiscover,
   onSave,
   onBack,
@@ -33,18 +40,22 @@ export default function SettingsView({
   onUpdateProfile,
   onDeleteProfile,
   onSetProfile,
+  onSetScope,
+  onSaveSystemPrompt,
 }: SettingsViewProps) {
   const [baseUrl, setBaseUrl] = useState(config.baseUrl)
   const [apiKey, setApiKey] = useState(config.apiKey)
   const [model, setModel] = useState(config.model)
   const [temperature, setTemperature] = useState(config.temperature)
   const [maxTokens, setMaxTokens] = useState(config.maxTokens)
-  const [systemPrompt, setSystemPrompt] = useState(config.systemPrompt)
+  const [profileId, setProfileId] = useState(config.profileId)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [discovering, setDiscovering] = useState(false)
   const [discoverError, setDiscoverError] = useState('')
   const [confirmWipe, setConfirmWipe] = useState(false)
+
+  const readOnly = meta.scope === 'global' && !meta.isAdmin
 
   const dirty = useMemo(
     () =>
@@ -53,8 +64,8 @@ export default function SettingsView({
       model !== config.model ||
       temperature !== config.temperature ||
       maxTokens !== config.maxTokens ||
-      systemPrompt !== config.systemPrompt,
-    [config, baseUrl, apiKey, model, temperature, maxTokens, systemPrompt],
+      profileId !== config.profileId,
+    [config, baseUrl, apiKey, model, temperature, maxTokens, profileId],
   )
 
   async function handleDiscover() {
@@ -72,7 +83,7 @@ export default function SettingsView({
   }
 
   async function handleSave() {
-    if (saving) return
+    if (saving || readOnly) return
     setSaving(true)
     setSaved(false)
     try {
@@ -83,7 +94,7 @@ export default function SettingsView({
         model,
         temperature,
         maxTokens: Math.max(1, Math.floor(Number(maxTokens) || 4096)),
-        systemPrompt,
+        profileId,
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
@@ -104,6 +115,8 @@ export default function SettingsView({
     setConfirmWipe(false)
   }
 
+  const editableClass = readOnly ? `${inputClass} opacity-60` : inputClass
+
   return (
     <div className="flex h-full flex-col">
       <header className="flex h-14 shrink-0 items-center gap-3 border-b border-white/8 px-4">
@@ -116,6 +129,12 @@ export default function SettingsView({
           <ArrowLeft size={20} />
         </button>
         <h1 className="font-display text-base font-bold tracking-tight text-mist-100">Ajustes</h1>
+        <span className="ml-auto flex items-center gap-1.5 text-xs text-mist-500">
+          {user.email}
+          <span className={`rounded-lg px-2 py-0.5 font-semibold ${meta.isAdmin ? 'bg-iris-500/15 text-iris-300' : 'bg-white/5 text-mist-400'}`}>
+            {meta.isAdmin ? 'admin' : 'usuario'}
+          </span>
+        </span>
       </header>
 
       <div className="flex-1 overflow-y-auto">
@@ -125,10 +144,27 @@ export default function SettingsView({
           transition={{ duration: 0.3 }}
           className="mx-auto max-w-2xl space-y-6 px-4 py-6"
         >
-          {/* Conexión */}
+          {readOnly && (
+            <div className="flex items-start gap-3 rounded-2xl border border-iris-500/25 bg-iris-500/5 p-4 text-sm text-mist-400">
+              <Info size={17} className="mt-0.5 shrink-0 text-iris-300" />
+              <p>
+                La configuración está en modo <strong>global</strong>: la gestiona el administrador.
+                Tú solo puedes usar los chats.
+              </p>
+            </div>
+          )}
+
+          {meta.scope === 'user' && !readOnly && (
+            <div className="rounded-2xl border border-nebula-400/20 bg-nebula-400/5 p-4 text-sm text-mist-400">
+              Modo <strong className="text-nebula-300">por usuario</strong>: tus ajustes son privados
+              y solo afectan a tu cuenta.
+            </div>
+          )}
+
+          {/* Conexión + Modelo */}
           <section className="rounded-2xl border border-white/10 bg-ink-900/70 p-5 backdrop-blur-xl">
-            <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-mist-100">
-              Conexión
+            <h2 className="mb-4 font-display text-lg font-bold text-mist-100">
+              {meta.isAdmin && meta.scope === 'global' ? 'Configuración global' : 'Conexión y modelo'}
             </h2>
             <div className="space-y-4">
               <div>
@@ -144,19 +180,13 @@ export default function SettingsView({
                   value={baseUrl}
                   onChange={(e) => setBaseUrl(e.target.value)}
                   placeholder="http://host:puerto/v1"
-                  className={inputClass}
+                  disabled={readOnly}
+                  className={editableClass}
                 />
               </div>
-              <ApiKeyField id="st-key" value={apiKey} onChange={setApiKey} />
-            </div>
-          </section>
 
-          {/* Modelo */}
-          <section className="rounded-2xl border border-white/10 bg-ink-900/70 p-5 backdrop-blur-xl">
-            <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-mist-100">
-              Modelo
-            </h2>
-            <div className="space-y-4">
+              <ApiKeyField id="st-key" value={apiKey} onChange={setApiKey} disabled={readOnly} />
+
               <div className="flex items-end gap-2">
                 <div className="min-w-0 flex-1">
                   <label htmlFor="st-model" className={labelClass}>
@@ -166,7 +196,8 @@ export default function SettingsView({
                     id="st-model"
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
-                    className={`${inputClass} ${models.length === 0 ? 'opacity-50' : ''}`}
+                    disabled={readOnly}
+                    className={`${editableClass} ${models.length === 0 ? 'opacity-50' : ''}`}
                   >
                     {models.length === 0 && <option value="">Sin modelos descubiertos</option>}
                     {models.map((m) => (
@@ -179,7 +210,7 @@ export default function SettingsView({
                 <button
                   type="button"
                   onClick={handleDiscover}
-                  disabled={discovering}
+                  disabled={discovering || readOnly}
                   className="inline-flex h-[42px] shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3.5 text-sm font-medium text-mist-200 transition-all hover:border-nebula-400/50 hover:bg-white/10 disabled:opacity-60"
                 >
                   {discovering ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
@@ -192,6 +223,26 @@ export default function SettingsView({
                   {discoverError}
                 </p>
               )}
+
+              <div>
+                <label htmlFor="st-profile" className={labelClass}>
+                  Perfil activo
+                </label>
+                <select
+                  id="st-profile"
+                  value={profileId}
+                  onChange={(e) => setProfileId(e.target.value)}
+                  disabled={readOnly}
+                  className={editableClass}
+                >
+                  <option value="">Sin perfil</option>
+                  {profiles.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.emoji} {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
@@ -208,6 +259,7 @@ export default function SettingsView({
                   step={0.1}
                   value={temperature}
                   onChange={(e) => setTemperature(Number(e.target.value))}
+                  disabled={readOnly}
                   className="w-full accent-iris-500"
                 />
                 <div className="mt-0.5 flex justify-between text-[11px] text-mist-600">
@@ -226,25 +278,38 @@ export default function SettingsView({
                   min={1}
                   value={maxTokens}
                   onChange={(e) => setMaxTokens(Number(e.target.value))}
-                  className={inputClass}
+                  disabled={readOnly}
+                  className={editableClass}
                 />
               </div>
             </div>
           </section>
 
-          {/* Sistema */}
+          {/* System prompt: solo admin edita; resto lectura */}
           <section className="rounded-2xl border border-white/10 bg-ink-900/70 p-5 backdrop-blur-xl">
-            <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-mist-100">
-              Prompt de sistema
+            <h2 className="mb-1 flex items-center gap-2 font-display text-lg font-bold text-mist-100">
+              System prompt
             </h2>
-            <textarea
-              id="st-prompt"
-              rows={4}
-              value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
-              placeholder="Define el comportamiento del asistente…"
-              className={`${inputClass} resize-y`}
-            />
+            <p className="mb-3 text-sm text-mist-500">
+              {meta.isAdmin
+                ? 'Se aplica a todas las conversaciones, además del master prompt del perfil activo.'
+                : 'Solo el administrador puede modificarlo. Se aplica a todas las conversaciones.'}
+            </p>
+            {meta.isAdmin ? (
+              <AdminPanel
+                scope={meta.scope}
+                systemPrompt={config.systemPrompt}
+                onSetScope={onSetScope}
+                onSaveSystemPrompt={onSaveSystemPrompt}
+              />
+            ) : (
+              <textarea
+                rows={4}
+                readOnly
+                value={config.systemPrompt}
+                className={`${inputClass} resize-y opacity-60`}
+              />
+            )}
           </section>
 
           {/* Perfiles */}
@@ -254,15 +319,41 @@ export default function SettingsView({
             </h2>
             <p className="mb-4 text-sm text-mist-500">
               El master prompt del perfil activo se añade al system prompt en cada conversación.
+              {!meta.isAdmin && ' Solo el administrador puede crear o editar perfiles.'}
             </p>
-            <ProfilesManager
-              profiles={profiles}
-              activeProfileId={config.profileId}
-              onCreate={onCreateProfile}
-              onUpdate={onUpdateProfile}
-              onDelete={onDeleteProfile}
-              onSetActive={onSetProfile}
-            />
+            {meta.isAdmin ? (
+              <ProfilesManager
+                profiles={profiles}
+                activeProfileId={profileId}
+                onCreate={onCreateProfile}
+                onUpdate={onUpdateProfile}
+                onDelete={onDeleteProfile}
+                onSetActive={(id) => {
+                  onSetProfile(id)
+                  setProfileId(id)
+                }}
+              />
+            ) : (
+              <ul className="space-y-2">
+                {profiles.length === 0 && <p className="text-sm text-mist-600">No hay perfiles.</p>}
+                {profiles.map((p) => (
+                  <li key={p.id} className="flex items-start gap-3 rounded-xl border border-white/10 bg-ink-850 p-3">
+                    <span className="text-xl" aria-hidden="true">
+                      {p.emoji}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-mist-100">{p.name}</p>
+                      <p className="text-xs text-mist-500">{p.masterPrompt || 'Sin master prompt'}</p>
+                    </div>
+                    {profileId === p.id && (
+                      <span className="rounded-lg bg-iris-500/15 px-2 py-0.5 text-xs font-semibold text-iris-300">
+                        Activo
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
 
           {/* Zona de peligro */}
@@ -271,7 +362,7 @@ export default function SettingsView({
               Zona de peligro
             </h2>
             <p className="mb-4 text-sm text-mist-500">
-              Elimina permanentemente todas las conversaciones guardadas.
+              Elimina permanentemente tus conversaciones guardadas.
             </p>
             <button
               type="button"
@@ -283,30 +374,32 @@ export default function SettingsView({
               }`}
             >
               <Trash2 size={16} />
-              {confirmWipe ? 'Confirmar borrado' : 'Borrar todos los datos'}
+              {confirmWipe ? 'Confirmar borrado' : 'Borrar mis chats'}
             </button>
           </section>
         </motion.div>
       </div>
 
-      <div className="shrink-0 border-t border-white/8 px-4 py-4">
-        <div className="mx-auto flex max-w-2xl items-center justify-end gap-3">
-          {saved && (
-            <span className="inline-flex items-center gap-1.5 text-sm text-nebula-300">
-              <Check size={15} /> Guardado
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!dirty || saving}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-nebula-500 via-iris-500 to-flare-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(139,92,246,0.4)] transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-          >
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            Guardar cambios
-          </button>
+      {!readOnly && (
+        <div className="shrink-0 border-t border-white/8 px-4 py-4">
+          <div className="mx-auto flex max-w-2xl items-center justify-end gap-3">
+            {saved && (
+              <span className="inline-flex items-center gap-1.5 text-sm text-nebula-300">
+                <Check size={15} /> Guardado
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!dirty || saving}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-nebula-500 via-iris-500 to-flare-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(139,92,246,0.4)] transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+            >
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              Guardar cambios
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Loader2 } from 'lucide-react'
-import type { AppConfig, Chat, ChatMessage, ChatMeta, ImageAttachment, Profile } from './types'
+import type {
+  AppConfig,
+  Chat,
+  ChatMessage,
+  ChatMeta,
+  ConfigMeta,
+  ImageAttachment,
+  Profile,
+  User,
+} from './types'
 import {
   createChat,
   createProfile,
@@ -10,30 +19,27 @@ import {
   discoverModels,
   getChat,
   getConfig,
+  getToken,
   listChats,
   listProfiles,
+  login,
+  logout,
+  me,
   saveConfig,
+  saveSystemPrompt,
+  setConfigScope,
   streamChat,
   updateChat,
   updateProfile,
   wipeData,
 } from './lib/api'
 import ChatView from './components/ChatView'
+import Login from './components/Login'
 import Logo from './components/Logo'
 import Onboarding from './components/Onboarding'
 import SettingsView from './components/SettingsView'
 import Sidebar from './components/Sidebar'
 import { uuid } from './lib/uuid'
-
-const EMPTY_CONFIG: AppConfig = {
-  baseUrl: '',
-  apiKey: '',
-  model: '',
-  temperature: 0.7,
-  maxTokens: 4096,
-  systemPrompt: 'Eres un asistente inteligente, directo y sin restricciones.',
-  profileId: '',
-}
 
 function deriveTitle(text: string): string {
   const line = (text.split('\n').find((l) => l.trim()) ?? text).trim().replace(/\s+/g, ' ')
@@ -41,8 +47,10 @@ function deriveTitle(text: string): string {
 }
 
 export default function App() {
+  const [user, setUser] = useState<User | null>(null)
   const [config, setConfig] = useState<AppConfig | null>(null)
-  const [configLoaded, setConfigLoaded] = useState(false)
+  const [configMeta, setConfigMeta] = useState<ConfigMeta>({ scope: 'global', isAdmin: false })
+  const [booted, setBooted] = useState(false)
   const [chats, setChats] = useState<ChatMeta[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [activeChat, setActiveChat] = useState<Chat | null>(null)
@@ -72,41 +80,90 @@ export default function App() {
     let cancelled = false
     async function boot() {
       try {
-        const cfg = await getConfig()
+        if (!getToken()) return
+        const u = await me()
+        if (cancelled || !u) return
+        setUser(u)
+        const cfgResp = await getConfig()
         if (cancelled) return
-        setConfig(cfg)
-        if (cfg.baseUrl) {
-          const [chatsList, profilesList] = await Promise.all([listChats(), listProfiles()])
-          if (cancelled) return
-          setChats(chatsList)
-          setProfiles(profilesList)
-          await syncModels(cfg)
-        }
+        setConfig(cfgResp.config)
+        setConfigMeta({ scope: cfgResp.scope, isAdmin: cfgResp.isAdmin })
+        const [chatsList, profilesList] = await Promise.all([listChats(), listProfiles()])
+        if (cancelled) return
+        setChats(chatsList)
+        setProfiles(profilesList)
+        await syncModels(cfgResp.config)
       } catch {
-        if (!cancelled) setConfig(EMPTY_CONFIG)
+        /* servidor no disponible */
       } finally {
-        if (!cancelled) setConfigLoaded(true)
+        if (!cancelled) setBooted(true)
       }
     }
     void boot()
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  async function handleLogin(email: string, password: string) {
+    const u = await login(email, password)
+    setUser(u)
+    const cfgResp = await getConfig()
+    setConfig(cfgResp.config)
+    setConfigMeta({ scope: cfgResp.scope, isAdmin: cfgResp.isAdmin })
+    const [chatsList, profilesList] = await Promise.all([listChats(), listProfiles()])
+    setChats(chatsList)
+    setProfiles(profilesList)
+    await syncModels(cfgResp.config)
+    setView('chat')
+    setActiveId(null)
+    setActiveChat(null)
+    setSidebarOpen(false)
+  }
+
+  async function handleLogout() {
+    abortRef.current?.abort()
+    streamingRef.current = false
+    await logout()
+    setUser(null)
+    setConfig(null)
+    setConfigMeta({ scope: 'global', isAdmin: false })
+    setChats([])
+    setProfiles([])
+    setModels([])
+    setActiveId(null)
+    setActiveChat(null)
+    setIsStreaming(false)
+  }
+
   async function handleOnboardingComplete(cfg: AppConfig) {
-    const saved = await saveConfig(cfg)
-    setConfig(saved)
+    const resp = await saveConfig(cfg)
+    setConfig(resp.config)
+    setConfigMeta({ scope: resp.scope, isAdmin: resp.isAdmin })
     setView('chat')
     const [chatsList, profilesList] = await Promise.all([listChats(), listProfiles()])
     setChats(chatsList)
     setProfiles(profilesList)
-    await syncModels(saved)
+    await syncModels(resp.config)
   }
 
   async function handleSaveSettings(cfg: AppConfig) {
-    const saved = await saveConfig(cfg)
-    setConfig(saved)
+    const resp = await saveConfig(cfg)
+    setConfig(resp.config)
+    setConfigMeta({ scope: resp.scope, isAdmin: resp.isAdmin })
+  }
+
+  async function handleSetScope(scope: ConfigMeta['scope']) {
+    await setConfigScope(scope)
+    const resp = await getConfig()
+    setConfig(resp.config)
+    setConfigMeta({ scope: resp.scope, isAdmin: resp.isAdmin })
+  }
+
+  async function handleSaveSystemPrompt(prompt: string) {
+    await saveSystemPrompt(prompt)
+    setConfig((c) => (c ? { ...c, systemPrompt: prompt } : c))
   }
 
   async function handleDiscoverModels(baseUrl?: string, apiKey?: string): Promise<string[]> {
@@ -178,7 +235,6 @@ export default function App() {
     setChats([])
     setActiveId(null)
     setActiveChat(null)
-    setModels([])
   }
 
   function handleStop() {
@@ -229,13 +285,13 @@ export default function App() {
       abortRef.current = controller
       let full = ''
       try {
-      for await (const delta of streamChat({
-        messages,
-        model: config.model,
-        temperature: config.temperature,
-        maxTokens: config.maxTokens,
-        signal: controller.signal,
-      })) {
+        for await (const delta of streamChat({
+          messages,
+          model: config.model,
+          temperature: config.temperature,
+          maxTokens: config.maxTokens,
+          signal: controller.signal,
+        })) {
           full += delta
           setActiveChat((prev) =>
             prev && prev.id === base.id
@@ -270,7 +326,7 @@ export default function App() {
     return true
   }
 
-  if (!configLoaded) {
+  if (!booted) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -281,10 +337,32 @@ export default function App() {
     )
   }
 
-  if (!config || !config.baseUrl) {
+  if (!user) {
     return (
       <div className="h-full">
-        <Onboarding onComplete={handleOnboardingComplete} />
+        <Login onLogin={handleLogin} />
+      </div>
+    )
+  }
+
+  if (!config) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Logo size={64} radius="rounded-3xl" className="animate-pulse" />
+          <Loader2 size={18} className="animate-spin text-mist-500" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!config.baseUrl) {
+    return (
+      <div className="h-full">
+        <Onboarding
+          onComplete={handleOnboardingComplete}
+          blocked={configMeta.scope === 'global' && !configMeta.isAdmin}
+        />
       </div>
     )
   }
@@ -295,6 +373,7 @@ export default function App() {
         chats={chats}
         activeId={activeId}
         open={sidebarOpen}
+        user={user}
         onClose={() => setSidebarOpen(false)}
         onSelect={(id) => void handleSelectChat(id)}
         onNew={handleNewChat}
@@ -303,6 +382,7 @@ export default function App() {
           setSidebarOpen(false)
           setView('settings')
         }}
+        onLogout={() => void handleLogout()}
         models={models}
         model={config.model}
         onModelChange={(m) => {
@@ -331,6 +411,8 @@ export default function App() {
                   config={config}
                   models={models}
                   profiles={profiles}
+                  user={user}
+                  meta={configMeta}
                   onDiscover={handleDiscoverModels}
                   onSave={handleSaveSettings}
                   onBack={() => setView('chat')}
@@ -339,6 +421,8 @@ export default function App() {
                   onUpdateProfile={handleUpdateProfile}
                   onDeleteProfile={handleDeleteProfile}
                   onSetProfile={(id) => void handleSetProfile(id)}
+                  onSetScope={handleSetScope}
+                  onSaveSystemPrompt={handleSaveSystemPrompt}
                 />
               </motion.div>
             ) : (

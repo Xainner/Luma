@@ -11,6 +11,7 @@ const DEFAULT_BASE_URL = 'http://192.168.0.3:8021/v1'
 
 interface OnboardingProps {
   onComplete: (config: AppConfig) => Promise<void>
+  blocked?: boolean
 }
 
 const container: Variants = {
@@ -23,7 +24,7 @@ const item: Variants = {
   show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 220, damping: 22 } },
 }
 
-export default function Onboarding({ onComplete }: OnboardingProps) {
+export default function Onboarding({ onComplete, blocked = false }: OnboardingProps) {
   const [baseUrl, setBaseUrl] = useState(DEFAULT_BASE_URL)
   const [apiKey, setApiKey] = useState('')
   const [models, setModels] = useState<string[] | null>(null)
@@ -68,6 +69,23 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar la configuración.')
       setSaving(false)
     }
+  }
+
+  if (blocked) {
+    return (
+      <div className="flex h-full items-center justify-center px-5">
+        <div className="max-w-sm rounded-3xl border border-white/10 bg-ink-900/70 p-8 text-center shadow-[0_20px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+          <Logo size={56} className="mx-auto" />
+          <h2 className="mt-4 font-display text-xl font-bold text-mist-100">
+            Esperando configuración
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-mist-500">
+            El administrador aún no ha configurado el servidor. Pídele que complete la
+            configuración en su panel de administración.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (

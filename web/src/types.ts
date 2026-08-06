@@ -48,3 +48,20 @@ export interface ChatMeta {
 }
 
 export const MASKED_KEY = '********'
+
+export type ConfigScope = 'global' | 'user'
+
+export interface User {
+  id: string
+  email: string
+  role: 'admin' | 'user'
+}
+
+export interface AdminUser extends User {
+  createdAt: number
+}
+
+export interface ConfigMeta {
+  scope: ConfigScope
+  isAdmin: boolean
+}
