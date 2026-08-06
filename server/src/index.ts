@@ -130,6 +130,20 @@ function authHeaders(apiKey: string): Record<string, string> {
   return apiKey ? { Authorization: `Bearer ${apiKey.trim()}` } : {}
 }
 
+const REDIRECT_STATUS = new Set([301, 302, 303, 307, 308])
+
+async function fetchFollow(url: string, init: RequestInit, redirects = 0): Promise<Response> {
+  const res = await fetch(url, { ...init, redirect: 'manual' })
+  if (redirects < 5 && REDIRECT_STATUS.has(res.status)) {
+    const location = res.headers.get('location')
+    if (location) {
+      await res.body?.cancel().catch(() => {})
+      return fetchFollow(new URL(location, url).toString(), init, redirects + 1)
+    }
+  }
+  return res
+}
+
 function toApiMessages(messages: ChatMessage[], systemPrompt: string) {
   const out: Array<Record<string, unknown>> = []
   if (systemPrompt.trim()) {
@@ -329,7 +343,7 @@ app.get('/api/models', async (req, reply) => {
   const apiKey = typeof hdrKey === 'string' ? hdrKey : effective.apiKey
   if (!baseUrl) return reply.code(400).send({ error: 'No hay una URL base configurada.' })
   try {
-    const res = await fetch(`${baseUrl}/models`, {
+    const res = await fetchFollow(`${baseUrl}/models`, {
       headers: { ...authHeaders(apiKey), Accept: 'application/json' },
       signal: AbortSignal.timeout(15000),
     })
@@ -382,19 +396,19 @@ app.post('/api/chat', async (req: FastifyRequest<{ Body: ChatBody }>, reply: Fas
     stream: true,
   }
 
-  const upstreamController = new AbortController()
-  let upstream: Response
-  try {
-    upstream = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...authHeaders(effective.apiKey),
-      },
-      body: JSON.stringify(payload),
-      signal: upstreamController.signal,
-    })
-  } catch (err) {
+    const upstreamController = new AbortController()
+    let upstream: Response
+    try {
+      upstream = await fetchFollow(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders(effective.apiKey),
+        },
+        body: JSON.stringify(payload),
+        signal: upstreamController.signal,
+      })
+    } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return reply.code(502).send({ error: `No se pudo conectar: ${message}` })
   }
