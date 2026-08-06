@@ -342,7 +342,7 @@ export default function App() {
     return provider(
       <div className="flex h-full items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <Logo size={64} radius="rounded-3xl" className="animate-pulse" />
+          <Logo size={104} radius="rounded-3xl" className="animate-pulse" />
           <Loader2 size={18} className="animate-spin text-mist-500" />
         </div>
       </div>,
@@ -361,7 +361,7 @@ export default function App() {
     return provider(
       <div className="flex h-full items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <Logo size={64} radius="rounded-3xl" className="animate-pulse" />
+          <Logo size={104} radius="rounded-3xl" className="animate-pulse" />
           <Loader2 size={18} className="animate-spin text-mist-500" />
         </div>
       </div>,
