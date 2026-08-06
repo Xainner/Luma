@@ -208,7 +208,6 @@ app.post('/api/config', async (req, reply) => {
       ...body,
       apiKey: applyApiKeyMask(body, current.apiKey),
     }
-    delete (next as { systemPrompt?: string }).systemPrompt
     await saveUserConfig(user.id, next)
     const effective = await loadEffectiveConfig(user)
     return reply.send({ config: publicConfig(effective), scope, isAdmin: user.role === 'admin' })
@@ -221,7 +220,6 @@ app.post('/api/config', async (req, reply) => {
   }
   const current = await loadGlobalConfig()
   const next: AppConfig = { ...current, ...body, apiKey: applyApiKeyMask(body, current.apiKey) }
-  delete (next as { systemPrompt?: string }).systemPrompt
   await saveGlobalConfig(next)
   const effective = await loadEffectiveConfig(user)
   return reply.send({ config: publicConfig(effective), scope, isAdmin: true })
