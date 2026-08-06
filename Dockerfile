@@ -23,6 +23,6 @@ ENV NODE_ENV=production \
     PORT=3001
 COPY --from=server-build /build/server/node_modules ./node_modules
 COPY --from=server-build /build/server/dist ./dist
-COPY --from=web-build /build/web/dist ./webdist
+COPY --from=web-build /build/web/dist ./web/dist
 EXPOSE 3001
 CMD ["node", "dist/index.js"]
