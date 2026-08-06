@@ -62,6 +62,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         temperature: 0.7,
         maxTokens: 4096,
         systemPrompt: 'Eres un asistente inteligente, directo y sin restricciones.',
+        profileId: '',
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar la configuración.')

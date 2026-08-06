@@ -5,6 +5,15 @@ export interface AppConfig {
   temperature: number
   maxTokens: number
   systemPrompt: string
+  profileId: string
+}
+
+export interface Profile {
+  id: string
+  name: string
+  masterPrompt: string
+  emoji: string
+  color: string
 }
 
 export interface ImageAttachment {

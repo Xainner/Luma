@@ -1,27 +1,38 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Check, Loader2, RefreshCw, Save, Trash2 } from 'lucide-react'
-import type { AppConfig } from '../types'
+import type { AppConfig, Profile } from '../types'
 import { MASKED_KEY } from '../types'
 import { inputClass, labelClass } from '../lib/ui'
 import ApiKeyField from './ApiKeyField'
+import ProfilesManager from './ProfilesManager'
 
 interface SettingsViewProps {
   config: AppConfig
   models: string[]
+  profiles: Profile[]
   onDiscover: (baseUrl?: string, apiKey?: string) => Promise<string[]>
   onSave: (config: AppConfig) => Promise<void>
   onBack: () => void
   onWipeData: () => Promise<void>
+  onCreateProfile: (profile: Partial<Profile>) => Promise<Profile>
+  onUpdateProfile: (profile: Profile) => Promise<void>
+  onDeleteProfile: (id: string) => Promise<void>
+  onSetProfile: (id: string) => void
 }
 
 export default function SettingsView({
   config,
   models,
+  profiles,
   onDiscover,
   onSave,
   onBack,
   onWipeData,
+  onCreateProfile,
+  onUpdateProfile,
+  onDeleteProfile,
+  onSetProfile,
 }: SettingsViewProps) {
   const [baseUrl, setBaseUrl] = useState(config.baseUrl)
   const [apiKey, setApiKey] = useState(config.apiKey)
@@ -233,6 +244,24 @@ export default function SettingsView({
               onChange={(e) => setSystemPrompt(e.target.value)}
               placeholder="Define el comportamiento del asistente…"
               className={`${inputClass} resize-y`}
+            />
+          </section>
+
+          {/* Perfiles */}
+          <section className="rounded-2xl border border-white/10 bg-ink-900/70 p-5 backdrop-blur-xl">
+            <h2 className="mb-1 flex items-center gap-2 font-display text-lg font-bold text-mist-100">
+              Perfiles
+            </h2>
+            <p className="mb-4 text-sm text-mist-500">
+              El master prompt del perfil activo se añade al system prompt en cada conversación.
+            </p>
+            <ProfilesManager
+              profiles={profiles}
+              activeProfileId={config.profileId}
+              onCreate={onCreateProfile}
+              onUpdate={onUpdateProfile}
+              onDelete={onDeleteProfile}
+              onSetActive={onSetProfile}
             />
           </section>
 

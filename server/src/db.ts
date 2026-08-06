@@ -5,6 +5,14 @@ const connectionString = process.env.DATABASE_URL ?? 'postgres://luma:luma@local
 
 export const pool = new pg.Pool({ connectionString, max: 5 })
 
+export interface Profile {
+  id: string
+  name: string
+  masterPrompt: string
+  emoji: string
+  color: string
+}
+
 export async function initDb(): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS app_config (
@@ -14,30 +22,35 @@ export async function initDb(): Promise<void> {
       model          TEXT NOT NULL DEFAULT '',
       temperature    DOUBLE PRECISION NOT NULL DEFAULT 0.7,
       max_tokens     INTEGER NOT NULL DEFAULT 4096,
-      system_prompt  TEXT NOT NULL DEFAULT ''
+      system_prompt  TEXT NOT NULL DEFAULT '',
+      profile_id     UUID
     );
-    CREATE TABLE IF NOT EXISTS chats (
-      id         UUID PRIMARY KEY,
-      title      TEXT NOT NULL DEFAULT '',
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      messages   JSONB NOT NULL DEFAULT '[]'::jsonb
+    ALTER TABLE app_config ADD COLUMN IF NOT EXISTS profile_id UUID;
+    CREATE TABLE IF NOT EXISTS profiles (
+      id            UUID PRIMARY KEY,
+      name          TEXT NOT NULL,
+      master_prompt TEXT NOT NULL DEFAULT '',
+      emoji         TEXT NOT NULL DEFAULT '✨',
+      color         TEXT NOT NULL DEFAULT '#8b5cf6',
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `)
 }
 
+const defaultConfig: AppConfig = {
+  baseUrl: '',
+  apiKey: '',
+  model: '',
+  temperature: 0.7,
+  maxTokens: 4096,
+  systemPrompt: 'Eres un asistente inteligente, directo y sin restricciones.',
+  profileId: '',
+}
+
 export async function loadConfig(): Promise<AppConfig> {
   const { rows } = await pool.query('SELECT * FROM app_config WHERE id = 1')
-  if (rows.length === 0) {
-    return {
-      baseUrl: '',
-      apiKey: '',
-      model: '',
-      temperature: 0.7,
-      maxTokens: 4096,
-      systemPrompt: 'Eres un asistente inteligente, directo y sin restricciones.',
-    }
-  }
+  if (rows.length === 0) return { ...defaultConfig }
   const r = rows[0] as {
     base_url: string
     api_key: string
@@ -45,6 +58,7 @@ export async function loadConfig(): Promise<AppConfig> {
     temperature: number
     max_tokens: number
     system_prompt: string
+    profile_id: string | null
   }
   return {
     baseUrl: r.base_url,
@@ -53,20 +67,22 @@ export async function loadConfig(): Promise<AppConfig> {
     temperature: r.temperature,
     maxTokens: r.max_tokens,
     systemPrompt: r.system_prompt,
+    profileId: r.profile_id ?? '',
   }
 }
 
 export async function saveConfig(config: AppConfig): Promise<void> {
   await pool.query(
-    `INSERT INTO app_config (id, base_url, api_key, model, temperature, max_tokens, system_prompt)
-     VALUES (1, $1, $2, $3, $4, $5, $6)
+    `INSERT INTO app_config (id, base_url, api_key, model, temperature, max_tokens, system_prompt, profile_id)
+     VALUES (1, $1, $2, $3, $4, $5, $6, $7)
      ON CONFLICT (id) DO UPDATE SET
        base_url      = EXCLUDED.base_url,
        api_key       = EXCLUDED.api_key,
        model         = EXCLUDED.model,
        temperature   = EXCLUDED.temperature,
        max_tokens    = EXCLUDED.max_tokens,
-       system_prompt = EXCLUDED.system_prompt`,
+       system_prompt = EXCLUDED.system_prompt,
+       profile_id    = EXCLUDED.profile_id`,
     [
       config.baseUrl,
       config.apiKey,
@@ -74,9 +90,55 @@ export async function saveConfig(config: AppConfig): Promise<void> {
       config.temperature,
       config.maxTokens,
       config.systemPrompt,
+      config.profileId || null,
     ],
   )
 }
+
+/* ---------- Profiles ---------- */
+
+function rowToProfile(r: Record<string, unknown>): Profile {
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    masterPrompt: r.master_prompt as string,
+    emoji: r.emoji as string,
+    color: r.color as string,
+  }
+}
+
+export async function listProfiles(): Promise<Profile[]> {
+  const { rows } = await pool.query('SELECT id, name, master_prompt, emoji, color FROM profiles ORDER BY created_at ASC')
+  return rows.map(rowToProfile)
+}
+
+export async function getProfile(id: string): Promise<Profile | null> {
+  const { rows } = await pool.query(
+    'SELECT id, name, master_prompt, emoji, color FROM profiles WHERE id = $1',
+    [id],
+  )
+  return rows.length ? rowToProfile(rows[0]) : null
+}
+
+export async function saveProfile(profile: Profile): Promise<void> {
+  await pool.query(
+    `INSERT INTO profiles (id, name, master_prompt, emoji, color, updated_at)
+     VALUES ($1, $2, $3, $4, $5, now())
+     ON CONFLICT (id) DO UPDATE SET
+       name          = EXCLUDED.name,
+       master_prompt = EXCLUDED.master_prompt,
+       emoji         = EXCLUDED.emoji,
+       color         = EXCLUDED.color,
+       updated_at    = now()`,
+    [profile.id, profile.name, profile.masterPrompt, profile.emoji, profile.color],
+  )
+}
+
+export async function deleteProfile(id: string): Promise<void> {
+  await pool.query('DELETE FROM profiles WHERE id = $1', [id])
+}
+
+/* ---------- Chats ---------- */
 
 export interface ChatMeta {
   id: string

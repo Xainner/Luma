@@ -7,12 +7,17 @@ import { fileURLToPath } from 'node:url'
 import {
   deleteAllChats,
   deleteChat,
+  deleteProfile,
   getChat,
+  getProfile,
   initDb,
   listChats,
+  listProfiles,
   loadConfig,
   saveChat,
   saveConfig,
+  saveProfile,
+  type Profile,
 } from './db.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -31,6 +36,7 @@ export interface AppConfig {
   temperature: number
   maxTokens: number
   systemPrompt: string
+  profileId: string
 }
 
 export interface ImageAttachment {
@@ -136,6 +142,78 @@ app.post(
   },
 )
 
+/* ---------- Profiles ---------- */
+
+app.get('/api/profiles', async () => {
+  return { profiles: await listProfiles() }
+})
+
+app.post(
+  '/api/profiles',
+  {
+    schema: {
+      body: {
+        type: 'object',
+        required: ['name'],
+        properties: {
+          name: { type: 'string', minLength: 1, maxLength: 80 },
+          masterPrompt: { type: 'string' },
+          emoji: { type: 'string', maxLength: 8 },
+          color: { type: 'string', maxLength: 16 },
+        },
+      },
+    },
+  },
+  async (req, reply) => {
+    const body = (req.body ?? {}) as Partial<Profile>
+    const profile: Profile = {
+      id: randomUUID(),
+      name: body.name ?? 'Nuevo perfil',
+      masterPrompt: body.masterPrompt ?? '',
+      emoji: body.emoji ?? '✨',
+      color: body.color ?? '#8b5cf6',
+    }
+    await saveProfile(profile)
+    return reply.send({ profile })
+  },
+)
+
+app.put(
+  '/api/profiles/:id',
+  {
+    schema: {
+      params: { type: 'object', required: ['id'], properties: { id: { type: 'string' } } },
+      body: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', maxLength: 80 },
+          masterPrompt: { type: 'string' },
+          emoji: { type: 'string', maxLength: 8 },
+          color: { type: 'string', maxLength: 16 },
+        },
+      },
+    },
+  },
+  async (req: FastifyRequest<{ Params: { id: string }; Body: Partial<Profile> }>, reply) => {
+    const id = sanitizeId(req.params.id)
+    const existing = await getProfile(id)
+    if (!existing) return reply.code(404).send({ error: 'Perfil no encontrado.' })
+    const profile: Profile = { ...existing, ...(req.body ?? {}) }
+    await saveProfile(profile)
+    return reply.send({ profile })
+  },
+)
+
+app.delete('/api/profiles/:id', async (req: FastifyRequest<{ Params: { id: string } }>, reply) => {
+  const id = sanitizeId(req.params.id)
+  await deleteProfile(id)
+  const config = await loadConfig()
+  if (config.profileId === id) {
+    await saveConfig({ ...config, profileId: '' })
+  }
+  return reply.send({ ok: true })
+})
+
 /* ---------- Model discovery ---------- */
 
 app.get('/api/models', async (req, reply) => {
@@ -175,7 +253,13 @@ interface ChatBody {
   model?: string
   temperature?: number
   maxTokens?: number
-  systemPrompt?: string
+}
+
+function composeSystemPrompt(config: AppConfig, profile: Profile | null): string {
+  return [config.systemPrompt, profile?.masterPrompt ?? '']
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join('\n\n')
 }
 
 app.post(
@@ -189,7 +273,6 @@ app.post(
           model: { type: 'string' },
           temperature: { type: 'number', minimum: 0, maximum: 2 },
           maxTokens: { type: 'integer', minimum: 1 },
-          systemPrompt: { type: 'string' },
         },
         additionalProperties: true,
       },
@@ -200,11 +283,13 @@ app.post(
     const baseUrl = baseUrlOf(config)
     if (!baseUrl) return reply.code(400).send({ error: 'No hay una URL base configurada.' })
 
-    const { messages, model, temperature, maxTokens, systemPrompt } = req.body ?? {}
+    const { messages, model, temperature, maxTokens } = req.body ?? {}
+    const profile = config.profileId ? await getProfile(config.profileId) : null
+    const systemPrompt = composeSystemPrompt(config, profile)
 
     const payload = {
       model: model || config.model,
-      messages: toApiMessages(messages ?? [], systemPrompt ?? config.systemPrompt),
+      messages: toApiMessages(messages ?? [], systemPrompt),
       temperature: temperature ?? config.temperature,
       max_tokens: maxTokens ?? config.maxTokens,
       stream: true,

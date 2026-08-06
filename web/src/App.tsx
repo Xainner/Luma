@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Loader2 } from 'lucide-react'
-import type { AppConfig, Chat, ChatMessage, ChatMeta, ImageAttachment } from './types'
+import type { AppConfig, Chat, ChatMessage, ChatMeta, ImageAttachment, Profile } from './types'
 import {
   createChat,
+  createProfile,
   deleteChat,
+  deleteProfile,
   discoverModels,
   getChat,
   getConfig,
   listChats,
+  listProfiles,
   saveConfig,
   streamChat,
   updateChat,
+  updateProfile,
   wipeData,
 } from './lib/api'
 import ChatView from './components/ChatView'
@@ -27,6 +31,7 @@ const EMPTY_CONFIG: AppConfig = {
   temperature: 0.7,
   maxTokens: 4096,
   systemPrompt: 'Eres un asistente inteligente, directo y sin restricciones.',
+  profileId: '',
 }
 
 function deriveTitle(text: string): string {
@@ -44,6 +49,7 @@ export default function App() {
   const [view, setView] = useState<'chat' | 'settings'>('chat')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [models, setModels] = useState<string[]>([])
+  const [profiles, setProfiles] = useState<Profile[]>([])
   const abortRef = useRef<AbortController | null>(null)
   const streamingRef = useRef(false)
 
@@ -69,9 +75,10 @@ export default function App() {
         if (cancelled) return
         setConfig(cfg)
         if (cfg.baseUrl) {
-          const chatsList = await listChats()
+          const [chatsList, profilesList] = await Promise.all([listChats(), listProfiles()])
           if (cancelled) return
           setChats(chatsList)
+          setProfiles(profilesList)
           await syncModels(cfg)
         }
       } catch {
@@ -90,8 +97,9 @@ export default function App() {
     const saved = await saveConfig(cfg)
     setConfig(saved)
     setView('chat')
-    const chatsList = await listChats()
+    const [chatsList, profilesList] = await Promise.all([listChats(), listProfiles()])
     setChats(chatsList)
+    setProfiles(profilesList)
     await syncModels(saved)
   }
 
@@ -109,6 +117,34 @@ export default function App() {
       await saveConfig(next).catch(() => {})
     }
     return found
+  }
+
+  async function handleCreateProfile(profile: Partial<Profile>): Promise<Profile> {
+    const created = await createProfile(profile)
+    setProfiles(await listProfiles())
+    return created
+  }
+
+  async function handleUpdateProfile(profile: Profile): Promise<void> {
+    await updateProfile(profile)
+    setProfiles(await listProfiles())
+  }
+
+  async function handleDeleteProfile(id: string): Promise<void> {
+    await deleteProfile(id)
+    if (config?.profileId === id) {
+      const next = { ...config, profileId: '' }
+      setConfig(next)
+      await saveConfig(next).catch(() => {})
+    }
+    setProfiles(await listProfiles())
+  }
+
+  async function handleSetProfile(id: string): Promise<void> {
+    if (!config) return
+    const next = { ...config, profileId: id }
+    setConfig(next)
+    await saveConfig(next).catch(() => {})
   }
 
   async function handleSelectChat(id: string) {
@@ -192,14 +228,13 @@ export default function App() {
       abortRef.current = controller
       let full = ''
       try {
-        for await (const delta of streamChat({
-          messages,
-          model: config.model,
-          temperature: config.temperature,
-          maxTokens: config.maxTokens,
-          systemPrompt: config.systemPrompt,
-          signal: controller.signal,
-        })) {
+      for await (const delta of streamChat({
+        messages,
+        model: config.model,
+        temperature: config.temperature,
+        maxTokens: config.maxTokens,
+        signal: controller.signal,
+      })) {
           full += delta
           setActiveChat((prev) =>
             prev && prev.id === base.id
@@ -274,6 +309,9 @@ export default function App() {
           setConfig(next)
           void saveConfig(next).catch(() => {})
         }}
+        profiles={profiles}
+        profileId={config.profileId}
+        onProfileChange={(id) => void handleSetProfile(id)}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -291,10 +329,15 @@ export default function App() {
                 <SettingsView
                   config={config}
                   models={models}
+                  profiles={profiles}
                   onDiscover={handleDiscoverModels}
                   onSave={handleSaveSettings}
                   onBack={() => setView('chat')}
                   onWipeData={handleWipeData}
+                  onCreateProfile={handleCreateProfile}
+                  onUpdateProfile={handleUpdateProfile}
+                  onDeleteProfile={handleDeleteProfile}
+                  onSetProfile={(id) => void handleSetProfile(id)}
                 />
               </motion.div>
             ) : (

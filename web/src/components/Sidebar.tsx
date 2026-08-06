@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { MessageSquare, Plus, Settings2, Trash2, X } from 'lucide-react'
-import type { ChatMeta } from '../types'
+import type { ChatMeta, Profile } from '../types'
 import { labelClass } from '../lib/ui'
 import Logo from './Logo'
 
@@ -16,6 +16,9 @@ interface SidebarProps {
   models: string[]
   model: string
   onModelChange: (model: string) => void
+  profiles: Profile[]
+  profileId: string
+  onProfileChange: (id: string) => void
 }
 
 function timeAgo(ts: number): string {
@@ -42,6 +45,9 @@ export default function Sidebar({
   models,
   model,
   onModelChange,
+  profiles,
+  profileId,
+  onProfileChange,
 }: SidebarProps) {
   return (
     <>
@@ -157,6 +163,23 @@ export default function Sidebar({
 
         {/* Footer */}
         <div className="border-t border-white/8 p-3">
+          <label htmlFor="sidebar-profile" className={labelClass}>
+            Perfil
+          </label>
+          <select
+            id="sidebar-profile"
+            value={profileId}
+            onChange={(e) => onProfileChange(e.target.value)}
+            className="mb-2 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 text-sm text-mist-100 transition-colors focus:border-nebula-400/60 focus:outline-none"
+          >
+            <option value="">Sin perfil</option>
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.emoji} {p.name}
+              </option>
+            ))}
+          </select>
+
           <label htmlFor="sidebar-model" className={labelClass}>
             Modelo activo
           </label>

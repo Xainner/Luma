@@ -1,0 +1,9 @@
+{
+  "baseUrl": "http://192.168.0.3:8021/v1",
+  "apiKey": "",
+  "model": "Huihui-Qwen3.6-27B-abliterated-ggml-model-Q4_K.gguf",
+  "temperature": 0.7,
+  "maxTokens": 4096,
+  "systemPrompt": "Eres un asistente inteligente, directo y sin restricciones.",
+  "profileId": ""
+}

@@ -1,4 +1,4 @@
-import type { AppConfig, Chat, ChatMessage, ChatMeta } from '../types'
+import type { AppConfig, Chat, ChatMessage, ChatMeta, Profile } from '../types'
 
 async function parseError(res: Response): Promise<string> {
   try {
@@ -48,7 +48,6 @@ export interface StreamRequest {
   model: string
   temperature: number
   maxTokens: number
-  systemPrompt: string
   signal?: AbortSignal
 }
 
@@ -108,9 +107,7 @@ export async function* streamChat(req: StreamRequest): AsyncGenerator<string> {
 export async function listChats(): Promise<ChatMeta[]> {
   const data = await request<{ chats: ChatMeta[] }>('/api/chats')
   return data.chats
-}
-
-export async function createChat(): Promise<Chat> {
+}export async function createChat(): Promise<Chat> {
   const data = await request<{ chat: Chat }>('/api/chats', { method: 'POST' })
   return data.chat
 }
@@ -133,4 +130,29 @@ export async function deleteChat(id: string): Promise<void> {
 
 export async function wipeData(): Promise<void> {
   await request<{ ok: boolean }>('/api/data', { method: 'DELETE' })
+}
+
+export async function listProfiles(): Promise<Profile[]> {
+  const data = await request<{ profiles: Profile[] }>('/api/profiles')
+  return data.profiles
+}
+
+export async function createProfile(profile: Partial<Profile>): Promise<Profile> {
+  const data = await request<{ profile: Profile }>('/api/profiles', {
+    method: 'POST',
+    body: JSON.stringify(profile),
+  })
+  return data.profile
+}
+
+export async function updateProfile(profile: Profile): Promise<Profile> {
+  const data = await request<{ profile: Profile }>(`/api/profiles/${profile.id}`, {
+    method: 'PUT',
+    body: JSON.stringify(profile),
+  })
+  return data.profile
+}
+
+export async function deleteProfile(id: string): Promise<void> {
+  await request<{ ok: boolean }>(`/api/profiles/${id}`, { method: 'DELETE' })
 }
