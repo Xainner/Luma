@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
+import { useI18n } from '../i18n'
 import { inputClass, labelClass } from '../lib/ui'
 
 interface ApiKeyFieldProps {
@@ -10,11 +11,12 @@ interface ApiKeyFieldProps {
 }
 
 export default function ApiKeyField({ id, value, onChange, disabled }: ApiKeyFieldProps) {
+  const { t } = useI18n()
   const [show, setShow] = useState(false)
   return (
     <div>
       <label htmlFor={id} className={labelClass}>
-        API key <span className="text-mist-600">(opcional)</span>
+        {t('apikey.label')} <span className="text-mist-600">{t('apikey.optional')}</span>
       </label>
       <div className="relative">
         <input
@@ -24,7 +26,7 @@ export default function ApiKeyField({ id, value, onChange, disabled }: ApiKeyFie
           spellCheck={false}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="sk-…"
+          placeholder={t('apikey.placeholder')}
           disabled={disabled}
           className={`${inputClass} ${disabled ? 'opacity-60' : ''} pr-11`}
         />
@@ -32,7 +34,7 @@ export default function ApiKeyField({ id, value, onChange, disabled }: ApiKeyFie
           type="button"
           onClick={() => setShow((v) => !v)}
           disabled={disabled}
-          aria-label={show ? 'Ocultar API key' : 'Mostrar API key'}
+          aria-label={show ? t('apikey.hide') : t('apikey.show')}
           className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-mist-500 transition-colors hover:text-mist-200 disabled:opacity-40"
         >
           {show ? <EyeOff size={16} /> : <Eye size={16} />}

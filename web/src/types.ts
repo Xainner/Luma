@@ -6,6 +6,7 @@ export interface AppConfig {
   maxTokens: number
   systemPrompt: string
   profileId: string
+  language: Language
 }
 
 export interface Profile {
@@ -50,6 +51,8 @@ export interface ChatMeta {
 export const MASKED_KEY = '********'
 
 export type ConfigScope = 'global' | 'user'
+
+export type Language = 'es' | 'en'
 
 export interface User {
   id: string

@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Check, Info, Loader2, RefreshCw, Save, Trash2 } from 'lucide-react'
-import type { AppConfig, ConfigMeta, Profile, User } from '../types'
+import type { AppConfig, ConfigMeta, Language, Profile, User } from '../types'
 import { MASKED_KEY } from '../types'
+import { useI18n } from '../i18n'
 import { inputClass, labelClass } from '../lib/ui'
 import AdminPanel from './AdminPanel'
 import ApiKeyField from './ApiKeyField'
@@ -24,6 +25,7 @@ interface SettingsViewProps {
   onSetProfile: (id: string) => void
   onSetScope: (scope: ConfigMeta['scope']) => Promise<void>
   onSaveSystemPrompt: (prompt: string) => Promise<void>
+  onLanguageChange: (lang: Language) => void
 }
 
 export default function SettingsView({
@@ -42,7 +44,9 @@ export default function SettingsView({
   onSetProfile,
   onSetScope,
   onSaveSystemPrompt,
+  onLanguageChange,
 }: SettingsViewProps) {
+  const { t } = useI18n()
   const [baseUrl, setBaseUrl] = useState(config.baseUrl)
   const [apiKey, setApiKey] = useState(config.apiKey)
   const [model, setModel] = useState(config.model)
@@ -73,10 +77,10 @@ export default function SettingsView({
     setDiscovering(true)
     try {
       const found = await onDiscover(baseUrl, apiKey === MASKED_KEY ? undefined : apiKey)
-      if (found.length === 0) setDiscoverError('No se encontraron modelos en esa URL.')
+      if (found.length === 0) setDiscoverError(t('settings.noModels'))
       else setModel((prev) => (found.includes(prev) ? prev : found[0]))
     } catch (err) {
-      setDiscoverError(err instanceof Error ? err.message : 'Error al descubrir modelos.')
+      setDiscoverError(err instanceof Error ? err.message : t('settings.discovering'))
     } finally {
       setDiscovering(false)
     }
@@ -99,7 +103,7 @@ export default function SettingsView({
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
-      setDiscoverError(err instanceof Error ? err.message : 'No se pudo guardar.')
+      setDiscoverError(err instanceof Error ? err.message : t('settings.saved'))
     } finally {
       setSaving(false)
     }
@@ -123,16 +127,16 @@ export default function SettingsView({
         <button
           type="button"
           onClick={onBack}
-          aria-label="Volver al chat"
+          aria-label={t('settings.back')}
           className="rounded-lg p-2 text-mist-500 transition-colors hover:bg-white/5 hover:text-mist-100"
         >
           <ArrowLeft size={20} />
         </button>
-        <h1 className="font-display text-base font-bold tracking-tight text-mist-100">Ajustes</h1>
+        <h1 className="font-display text-base font-bold tracking-tight text-mist-100">{t('settings.title')}</h1>
         <span className="ml-auto flex items-center gap-1.5 text-xs text-mist-500">
           {user.email}
           <span className={`rounded-lg px-2 py-0.5 font-semibold ${meta.isAdmin ? 'bg-iris-500/15 text-iris-300' : 'bg-white/5 text-mist-400'}`}>
-            {meta.isAdmin ? 'admin' : 'usuario'}
+            {meta.isAdmin ? t('settings.badgeAdmin') : t('settings.badgeUser')}
           </span>
         </span>
       </header>
@@ -147,29 +151,25 @@ export default function SettingsView({
           {readOnly && (
             <div className="flex items-start gap-3 rounded-2xl border border-iris-500/25 bg-iris-500/5 p-4 text-sm text-mist-400">
               <Info size={17} className="mt-0.5 shrink-0 text-iris-300" />
-              <p>
-                La configuración está en modo <strong>global</strong>: la gestiona el administrador.
-                Tú solo puedes usar los chats.
-              </p>
+              <p>{t('settings.readOnlyNote')}</p>
             </div>
           )}
 
           {meta.scope === 'user' && !readOnly && (
             <div className="rounded-2xl border border-nebula-400/20 bg-nebula-400/5 p-4 text-sm text-mist-400">
-              Modo <strong className="text-nebula-300">por usuario</strong>: tus ajustes son privados
-              y solo afectan a tu cuenta.
+              {t('settings.userModeNote')}
             </div>
           )}
 
           {/* Conexión + Modelo */}
           <section className="rounded-2xl border border-white/10 bg-ink-900/70 p-5 backdrop-blur-xl">
             <h2 className="mb-4 font-display text-lg font-bold text-mist-100">
-              {meta.isAdmin && meta.scope === 'global' ? 'Configuración global' : 'Conexión y modelo'}
+              {meta.isAdmin && meta.scope === 'global' ? t('settings.globalConfig') : t('settings.connectionTitle')}
             </h2>
             <div className="space-y-4">
               <div>
                 <label htmlFor="st-base" className={labelClass}>
-                  URL base
+                  {t('settings.urlLabel')}
                 </label>
                 <input
                   id="st-base"
@@ -179,7 +179,7 @@ export default function SettingsView({
                   spellCheck={false}
                   value={baseUrl}
                   onChange={(e) => setBaseUrl(e.target.value)}
-                  placeholder="http://host:puerto/v1"
+                  placeholder={t('onboarding.urlPlaceholder')}
                   disabled={readOnly}
                   className={editableClass}
                 />
@@ -190,7 +190,7 @@ export default function SettingsView({
               <div className="flex items-end gap-2">
                 <div className="min-w-0 flex-1">
                   <label htmlFor="st-model" className={labelClass}>
-                    Modelo activo
+                    {t('settings.model')}
                   </label>
                   <select
                     id="st-model"
@@ -199,7 +199,7 @@ export default function SettingsView({
                     disabled={readOnly}
                     className={`${editableClass} ${models.length === 0 ? 'opacity-50' : ''}`}
                   >
-                    {models.length === 0 && <option value="">Sin modelos descubiertos</option>}
+                    {models.length === 0 && <option value="">{t('settings.noModels')}</option>}
                     {models.map((m) => (
                       <option key={m} value={m}>
                         {m}
@@ -214,7 +214,7 @@ export default function SettingsView({
                   className="inline-flex h-[42px] shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3.5 text-sm font-medium text-mist-200 transition-all hover:border-nebula-400/50 hover:bg-white/10 disabled:opacity-60"
                 >
                   {discovering ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-                  {discovering ? 'Buscando…' : 'Descubrir'}
+                  {discovering ? t('settings.discovering') : t('settings.discover')}
                 </button>
               </div>
 
@@ -226,7 +226,7 @@ export default function SettingsView({
 
               <div>
                 <label htmlFor="st-profile" className={labelClass}>
-                  Perfil activo
+                  {t('settings.profile')}
                 </label>
                 <select
                   id="st-profile"
@@ -235,7 +235,7 @@ export default function SettingsView({
                   disabled={readOnly}
                   className={editableClass}
                 >
-                  <option value="">Sin perfil</option>
+                  <option value="">{t('settings.noProfile')}</option>
                   {profiles.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.emoji} {p.name}
@@ -247,7 +247,7 @@ export default function SettingsView({
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
                   <label htmlFor="st-temp" className="text-sm font-medium text-mist-200">
-                    Temperatura
+                    {t('settings.temperature')}
                   </label>
                   <span className="font-mono text-sm text-nebula-300">{temperature.toFixed(1)}</span>
                 </div>
@@ -263,14 +263,14 @@ export default function SettingsView({
                   className="w-full accent-iris-500"
                 />
                 <div className="mt-0.5 flex justify-between text-[11px] text-mist-600">
-                  <span>Preciso</span>
-                  <span>Creativo</span>
+                  <span>{t('settings.precise')}</span>
+                  <span>{t('settings.creative')}</span>
                 </div>
               </div>
 
               <div>
                 <label htmlFor="st-tokens" className={labelClass}>
-                  Máximo de tokens
+                  {t('settings.maxTokens')}
                 </label>
                 <input
                   id="st-tokens"
@@ -282,18 +282,32 @@ export default function SettingsView({
                   className={editableClass}
                 />
               </div>
+
+              <div>
+                <label htmlFor="st-lang" className={labelClass}>
+                  {t('settings.language')}
+                </label>
+                <select
+                  id="st-lang"
+                  value={config.language}
+                  onChange={(e) => onLanguageChange(e.target.value as Language)}
+                  disabled={readOnly}
+                  className={editableClass}
+                >
+                  <option value="es">Español</option>
+                  <option value="en">English</option>
+                </select>
+              </div>
             </div>
           </section>
 
           {/* System prompt: solo admin edita; resto lectura */}
           <section className="rounded-2xl border border-white/10 bg-ink-900/70 p-5 backdrop-blur-xl">
             <h2 className="mb-1 flex items-center gap-2 font-display text-lg font-bold text-mist-100">
-              System prompt
+              {t('settings.systemPrompt')}
             </h2>
             <p className="mb-3 text-sm text-mist-500">
-              {meta.isAdmin
-                ? 'Se aplica a todas las conversaciones, además del master prompt del perfil activo.'
-                : 'Solo el administrador puede modificarlo. Se aplica a todas las conversaciones.'}
+              {meta.isAdmin ? t('settings.systemPromptAdminDesc') : t('settings.systemPromptUserDesc')}
             </p>
             {meta.isAdmin ? (
               <AdminPanel
@@ -315,11 +329,11 @@ export default function SettingsView({
           {/* Perfiles */}
           <section className="rounded-2xl border border-white/10 bg-ink-900/70 p-5 backdrop-blur-xl">
             <h2 className="mb-1 flex items-center gap-2 font-display text-lg font-bold text-mist-100">
-              Perfiles
+              {t('settings.profiles')}
             </h2>
             <p className="mb-4 text-sm text-mist-500">
-              El master prompt del perfil activo se añade al system prompt en cada conversación.
-              {!meta.isAdmin && ' Solo el administrador puede crear o editar perfiles.'}
+              {t('settings.profilesDesc')}
+              {!meta.isAdmin && t('settings.profilesDescNonAdmin')}
             </p>
             {meta.isAdmin ? (
               <ProfilesManager
@@ -335,7 +349,7 @@ export default function SettingsView({
               />
             ) : (
               <ul className="space-y-2">
-                {profiles.length === 0 && <p className="text-sm text-mist-600">No hay perfiles.</p>}
+                {profiles.length === 0 && <p className="text-sm text-mist-600">{t('settings.noProfiles')}</p>}
                 {profiles.map((p) => (
                   <li key={p.id} className="flex items-start gap-3 rounded-xl border border-white/10 bg-ink-850 p-3">
                     <span className="text-xl" aria-hidden="true">
@@ -343,11 +357,11 @@ export default function SettingsView({
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-mist-100">{p.name}</p>
-                      <p className="text-xs text-mist-500">{p.masterPrompt || 'Sin master prompt'}</p>
+                      <p className="text-xs text-mist-500">{p.masterPrompt || t('settings.noMaster')}</p>
                     </div>
                     {profileId === p.id && (
                       <span className="rounded-lg bg-iris-500/15 px-2 py-0.5 text-xs font-semibold text-iris-300">
-                        Activo
+                        {t('settings.active')}
                       </span>
                     )}
                   </li>
@@ -359,11 +373,9 @@ export default function SettingsView({
           {/* Zona de peligro */}
           <section className="rounded-2xl border border-red-500/20 bg-red-500/5 p-5">
             <h2 className="mb-2 flex items-center gap-2 font-display text-lg font-bold text-red-300">
-              Zona de peligro
+              {t('settings.danger')}
             </h2>
-            <p className="mb-4 text-sm text-mist-500">
-              Elimina permanentemente tus conversaciones guardadas.
-            </p>
+            <p className="mb-4 text-sm text-mist-500">{t('settings.dangerDesc')}</p>
             <button
               type="button"
               onClick={handleWipe}
@@ -374,7 +386,7 @@ export default function SettingsView({
               }`}
             >
               <Trash2 size={16} />
-              {confirmWipe ? 'Confirmar borrado' : 'Borrar mis chats'}
+              {confirmWipe ? t('settings.confirmWipe') : t('settings.wipeChats')}
             </button>
           </section>
         </motion.div>
@@ -385,7 +397,7 @@ export default function SettingsView({
           <div className="mx-auto flex max-w-2xl items-center justify-end gap-3">
             {saved && (
               <span className="inline-flex items-center gap-1.5 text-sm text-nebula-300">
-                <Check size={15} /> Guardado
+                <Check size={15} /> {t('settings.saved')}
               </span>
             )}
             <button
@@ -395,7 +407,7 @@ export default function SettingsView({
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-nebula-500 via-iris-500 to-flare-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(139,92,246,0.4)] transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
             >
               {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-              Guardar cambios
+              {t('settings.save')}
             </button>
           </div>
         </div>

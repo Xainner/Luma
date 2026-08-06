@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion, type Variants } from 'framer-motion'
 import { Loader2, Lock, LogIn, Mail } from 'lucide-react'
+import { useI18n } from '../i18n'
 import { inputClass, labelClass } from '../lib/ui'
 import Logo from './Logo'
 
@@ -19,6 +20,7 @@ const item: Variants = {
 }
 
 export default function Login({ onLogin }: LoginProps) {
+  const { t } = useI18n()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -57,7 +59,7 @@ export default function Login({ onLogin }: LoginProps) {
         <motion.div variants={item} className="flex flex-col items-center text-center">
           <Logo size={72} radius="rounded-3xl" />
           <h1 className="mt-4 font-display text-3xl font-bold tracking-tight text-mist-100">Luma</h1>
-          <p className="mt-1 text-sm text-mist-500">Tu IA, sin cadenas. Inicia sesión para continuar.</p>
+          <p className="mt-1 text-sm text-mist-500">{t('login.title')}</p>
         </motion.div>
 
         <motion.div variants={item} className="mt-8">
@@ -67,9 +69,7 @@ export default function Login({ onLogin }: LoginProps) {
           >
             <div className="space-y-4">
               <div>
-                <label htmlFor="lg-email" className={labelClass}>
-                  Email
-                </label>
+                <label htmlFor="lg-email" className={labelClass}>{t('login.email')}</label>
                 <div className="relative">
                   <Mail size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mist-600" />
                   <input
@@ -78,16 +78,14 @@ export default function Login({ onLogin }: LoginProps) {
                     autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="tucorreo@luma.local"
+                    placeholder={t('login.emailPlaceholder')}
                     className={`${inputClass} pl-10`}
                     required
                   />
                 </div>
               </div>
               <div>
-                <label htmlFor="lg-pass" className={labelClass}>
-                  Contraseña
-                </label>
+                <label htmlFor="lg-pass" className={labelClass}>{t('login.password')}</label>
                 <div className="relative">
                   <Lock size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mist-600" />
                   <input
@@ -119,7 +117,7 @@ export default function Login({ onLogin }: LoginProps) {
                 className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-nebula-500 via-iris-500 to-flare-500 px-4 py-3 text-sm font-bold text-white shadow-[0_8px_30px_rgba(139,92,246,0.45)] transition-all hover:shadow-[0_8px_36px_rgba(139,92,246,0.6)] hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
               >
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
-                {loading ? 'Entrando…' : 'Iniciar sesión'}
+                {loading ? t('login.loading') : t('login.submit')}
               </button>
             </div>
           </form>

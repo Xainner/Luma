@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Check, Plus, Save, Trash2, UserRound } from 'lucide-react'
 import type { Profile } from '../types'
+import { useI18n } from '../i18n'
 import { inputClass, labelClass } from '../lib/ui'
 
 interface ProfilesManagerProps {
@@ -27,6 +28,7 @@ function ProfileCard({
   onDelete: (id: string) => Promise<void>
   onSetActive: (id: string) => void
 }) {
+  const { t } = useI18n()
   const [name, setName] = useState(profile.name)
   const [emoji, setEmoji] = useState(profile.emoji)
   const [color, setColor] = useState(profile.color)
@@ -45,7 +47,7 @@ function ProfileCard({
     if (saving) return
     setSaving(true)
     try {
-      await onUpdate({ ...profile, name: name.trim() || 'Sin nombre', emoji, color, masterPrompt })
+      await onUpdate({ ...profile, name: name.trim() || t('profiles.unnamed'), emoji, color, masterPrompt })
       setSaved(true)
       setTimeout(() => setSaved(false), 1600)
     } finally {
@@ -76,14 +78,14 @@ function ProfileCard({
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <input
-              aria-label="Nombre del perfil"
+              aria-label={t('profiles.name')}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Nombre del perfil"
+              placeholder={t('profiles.name')}
               className={`${inputClass} flex-1`}
             />
             <input
-              aria-label="Emoji del perfil"
+              aria-label={t('profiles.emoji')}
               value={emoji}
               onChange={(e) => setEmoji(e.target.value)}
               placeholder="✨"
@@ -91,7 +93,7 @@ function ProfileCard({
             />
             <input
               type="color"
-              aria-label="Color del perfil"
+              aria-label={t('profiles.color')}
               value={color}
               onChange={(e) => setColor(e.target.value)}
               className="h-[42px] w-11 cursor-pointer rounded-xl border border-white/10 bg-ink-850 p-1"
@@ -99,21 +101,21 @@ function ProfileCard({
           </div>
 
           <label htmlFor={`master-${profile.id}`} className={labelClass}>
-            Master prompt <span className="text-mist-600">(se añade tras el system prompt)</span>
+            {t('profiles.master')} <span className="text-mist-600">{t('profiles.masterHint')}</span>
           </label>
           <textarea
             id={`master-${profile.id}`}
             rows={3}
             value={masterPrompt}
             onChange={(e) => setMasterPrompt(e.target.value)}
-            placeholder="Directivas adicionales que aplican a todas las conversaciones con este perfil…"
+            placeholder={t('profiles.masterPlaceholder')}
             className={`${inputClass} resize-y`}
           />
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {isActive ? (
               <span className="inline-flex items-center gap-1.5 rounded-xl border border-iris-500/40 bg-iris-500/15 px-3 py-1.5 text-xs font-semibold text-iris-300">
-                <Check size={13} /> Activo
+                <Check size={13} /> {t('profiles.active')}
               </span>
             ) : (
               <button
@@ -121,7 +123,7 @@ function ProfileCard({
                 onClick={() => onSetActive(profile.id)}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-mist-300 transition-colors hover:border-nebula-400/50 hover:text-nebula-300"
               >
-                <UserRound size={13} /> Usar
+                <UserRound size={13} /> {t('profiles.use')}
               </button>
             )}
             <button
@@ -131,7 +133,7 @@ function ProfileCard({
               className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-nebula-500 to-iris-600 px-3 py-1.5 text-xs font-bold text-white transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {saved ? <Check size={13} /> : <Save size={13} />}
-              {saved ? 'Guardado' : 'Guardar'}
+              {saved ? t('profiles.saved') : t('profiles.save')}
             </button>
             <button
               type="button"
@@ -143,7 +145,7 @@ function ProfileCard({
               }`}
             >
               <Trash2 size={13} />
-              {confirmDelete ? '¿Confirmar?' : 'Eliminar'}
+              {confirmDelete ? t('profiles.confirm') : t('profiles.delete')}
             </button>
           </div>
         </div>
@@ -160,6 +162,7 @@ export default function ProfilesManager({
   onDelete,
   onSetActive,
 }: ProfilesManagerProps) {
+  const { t } = useI18n()
   const [creating, setCreating] = useState(false)
 
   async function handleCreate() {
@@ -167,7 +170,7 @@ export default function ProfilesManager({
     setCreating(true)
     try {
       const color = DEFAULT_COLORS[profiles.length % DEFAULT_COLORS.length]
-      const created = await onCreate({ name: 'Nuevo perfil', masterPrompt: '', emoji: '✨', color })
+      const created = await onCreate({ name: t('profiles.unnamed'), masterPrompt: '', emoji: '✨', color })
       onSetActive(created.id)
     } finally {
       setCreating(false)
@@ -182,14 +185,10 @@ export default function ProfilesManager({
         disabled={creating}
         className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-sm font-medium text-mist-200 transition-all hover:border-nebula-400/50 hover:bg-white/10 disabled:opacity-50"
       >
-        <Plus size={15} /> Nuevo perfil
+        <Plus size={15} /> {t('profiles.new')}
       </button>
 
-      {profiles.length === 0 && (
-        <p className="text-sm text-mist-600">
-          Aún no hay perfiles. Crea uno para añadir un master prompt adicional al system prompt.
-        </p>
-      )}
+      {profiles.length === 0 && <p className="text-sm text-mist-600">{t('profiles.empty')}</p>}
 
       {profiles.map((p) => (
         <ProfileCard

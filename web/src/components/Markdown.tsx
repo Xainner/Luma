@@ -2,8 +2,10 @@ import { memo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Check, Copy } from 'lucide-react'
+import { useI18n } from '../i18n'
 
 function CodeBlock({ code, language }: { code: string; language: string }) {
+  const { t } = useI18n()
   const [copied, setCopied] = useState(false)
 
   async function copy() {
@@ -25,11 +27,11 @@ function CodeBlock({ code, language }: { code: string; language: string }) {
         <button
           type="button"
           onClick={copy}
-          aria-label="Copiar código"
+          aria-label={t('markdown.copy')}
           className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-mist-400 transition-colors hover:bg-white/5 hover:text-mist-100"
         >
           {copied ? <Check size={13} className="text-nebula-400" /> : <Copy size={13} />}
-          {copied ? 'Copiado' : 'Copiar'}
+          {copied ? t('markdown.copied') : t('markdown.copy')}
         </button>
       </div>
       <pre className="overflow-x-auto p-3.5 font-mono text-[13px] leading-relaxed text-mist-100">

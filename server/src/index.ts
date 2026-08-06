@@ -61,6 +61,7 @@ export interface AppConfig {
   maxTokens: number
   systemPrompt: string
   profileId: string
+  language: 'es' | 'en'
 }
 
 export interface ImageAttachment {

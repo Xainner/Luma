@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Menu, SquarePen } from 'lucide-react'
 import type { Chat, ImageAttachment } from '../types'
+import { useI18n, type I18nKey } from '../i18n'
 import Composer from './Composer'
 import Logo from './Logo'
 import MessageBubble from './MessageBubble'
@@ -15,11 +16,11 @@ interface ChatViewProps {
   onOpenSidebar: () => void
 }
 
-const SUGGESTIONS = [
-  'Explícame cómo funciona un transformer en una frase sencilla',
-  'Escríbeme un poema corto sobre la tecnología y el silencio',
-  'Dame 10 ideas creativas para un proyecto personal',
-  'Ayúdame a depurar un fragmento de código',
+const SUGGESTIONS: I18nKey[] = [
+  'chat.suggestion1',
+  'chat.suggestion2',
+  'chat.suggestion3',
+  'chat.suggestion4',
 ]
 
 export default function ChatView({
@@ -30,6 +31,7 @@ export default function ChatView({
   onNewChat,
   onOpenSidebar,
 }: ChatViewProps) {
+  const { t } = useI18n()
   const endRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [atBottom, setAtBottom] = useState(true)
@@ -53,24 +55,24 @@ export default function ChatView({
         <button
           type="button"
           onClick={onOpenSidebar}
-          aria-label="Abrir menú"
+          aria-label={t('chat.openMenu')}
           className="rounded-lg p-2 text-mist-500 transition-colors hover:bg-white/5 hover:text-mist-100 lg:hidden"
         >
           <Menu size={20} />
         </button>
         <div className="min-w-0 flex-1">
           <p className="truncate font-display text-sm font-bold text-mist-100">
-            {chat?.title || 'Nueva conversación'}
+            {chat?.title || t('chat.title')}
           </p>
         </div>
         <button
           type="button"
           onClick={onNewChat}
-          aria-label="Nueva conversación"
+          aria-label={t('chat.new')}
           className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-mist-400 transition-colors hover:bg-white/10 hover:text-mist-100"
         >
           <SquarePen size={14} />
-          <span className="hidden sm:inline">Nuevo</span>
+          <span className="hidden sm:inline">{t('chat.new')}</span>
         </button>
       </header>
 
@@ -97,11 +99,10 @@ export default function ChatView({
                 transition={{ delay: 0.1, duration: 0.5 }}
               >
                 <h2 className="font-display text-3xl font-bold tracking-tight text-mist-100">
-                  ¿En qué te ayudo hoy?
+                  {t('chat.emptyTitle')}
                 </h2>
                 <p className="mx-auto mt-2 max-w-md text-sm text-mist-500">
-                  Sin censura, sin límites. Pregunta lo que quieras, adjunta imágenes y deja que
-                  Luma responda en streaming.
+                  {t('chat.emptyDesc')}
                 </p>
               </motion.div>
 
@@ -111,14 +112,14 @@ export default function ChatView({
                 transition={{ delay: 0.2, duration: 0.5 }}
                 className="mt-8 grid w-full max-w-xl gap-2 sm:grid-cols-2"
               >
-                {SUGGESTIONS.map((s) => (
+                {SUGGESTIONS.map((k) => (
                   <button
-                    key={s}
+                    key={k}
                     type="button"
-                    onClick={() => void onSend(s, [])}
+                    onClick={() => void onSend(t(k), [])}
                     className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-mist-400 transition-all hover:border-iris-500/40 hover:bg-iris-500/10 hover:text-mist-100 active:scale-[0.98]"
                   >
-                    {s}
+                    {t(k)}
                   </button>
                 ))}
               </motion.div>

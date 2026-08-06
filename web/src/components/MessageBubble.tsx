@@ -1,5 +1,6 @@
 import { Copy, Sparkles } from 'lucide-react'
 import type { ChatMessage } from '../types'
+import { useI18n } from '../i18n'
 import Markdown from './Markdown'
 
 interface MessageBubbleProps {
@@ -9,6 +10,7 @@ interface MessageBubbleProps {
 }
 
 export default function MessageBubble({ message, isLast, isStreaming }: MessageBubbleProps) {
+  const { t } = useI18n()
   const isUser = message.role === 'user'
   const showCaret = isStreaming && isLast && message.role === 'assistant'
 
@@ -53,7 +55,7 @@ export default function MessageBubble({ message, isLast, isStreaming }: MessageB
           <button
             type="button"
             onClick={() => navigator.clipboard.writeText(message.content)}
-            aria-label="Copiar respuesta"
+            aria-label={t('bubble.copy')}
             className="mt-1 rounded-lg p-1.5 text-mist-600 opacity-0 transition-opacity hover:bg-white/5 hover:text-mist-200 group-hover:opacity-100 focus-visible:opacity-100"
           >
             <Copy size={14} />

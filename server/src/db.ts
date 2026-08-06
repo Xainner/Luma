@@ -37,10 +37,12 @@ export async function initDb(): Promise<void> {
       max_tokens     INTEGER NOT NULL DEFAULT 4096,
       system_prompt  TEXT NOT NULL DEFAULT '',
       profile_id     UUID,
-      config_scope   TEXT NOT NULL DEFAULT 'global'
+      config_scope   TEXT NOT NULL DEFAULT 'global',
+      language       TEXT NOT NULL DEFAULT 'es'
     );
     ALTER TABLE app_config ADD COLUMN IF NOT EXISTS profile_id UUID;
     ALTER TABLE app_config ADD COLUMN IF NOT EXISTS config_scope TEXT NOT NULL DEFAULT 'global';
+    ALTER TABLE app_config ADD COLUMN IF NOT EXISTS language TEXT NOT NULL DEFAULT 'es';
 
     CREATE TABLE IF NOT EXISTS profiles (
       id            UUID PRIMARY KEY,
@@ -73,8 +75,10 @@ export async function initDb(): Promise<void> {
       model       TEXT NOT NULL DEFAULT '',
       temperature DOUBLE PRECISION NOT NULL DEFAULT 0.7,
       max_tokens  INTEGER NOT NULL DEFAULT 4096,
-      profile_id  UUID
+      profile_id  UUID,
+      language    TEXT NOT NULL DEFAULT 'es'
     );
+    ALTER TABLE user_config ADD COLUMN IF NOT EXISTS language TEXT NOT NULL DEFAULT 'es';
 
     CREATE TABLE IF NOT EXISTS chats (
       id         UUID PRIMARY KEY,
@@ -110,6 +114,7 @@ const defaultConfig: AppConfig = {
   maxTokens: 4096,
   systemPrompt: 'Eres un asistente inteligente, directo y sin restricciones.',
   profileId: '',
+  language: 'es',
 }
 
 function rowToConfig(r: Record<string, unknown>): AppConfig {
@@ -121,6 +126,7 @@ function rowToConfig(r: Record<string, unknown>): AppConfig {
     maxTokens: (r.max_tokens as number) ?? 4096,
     systemPrompt: (r.system_prompt as string) ?? '',
     profileId: (r.profile_id as string) ?? '',
+    language: r.language === 'en' ? 'en' : 'es',
   }
 }
 
@@ -144,8 +150,8 @@ export async function loadGlobalConfig(): Promise<AppConfig> {
 
 export async function saveGlobalConfig(config: AppConfig): Promise<void> {
   await pool.query(
-    `INSERT INTO app_config (id, base_url, api_key, model, temperature, max_tokens, system_prompt, profile_id)
-     VALUES (1, $1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO app_config (id, base_url, api_key, model, temperature, max_tokens, system_prompt, profile_id, language)
+     VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8)
      ON CONFLICT (id) DO UPDATE SET
        base_url      = EXCLUDED.base_url,
        api_key       = EXCLUDED.api_key,
@@ -153,7 +159,8 @@ export async function saveGlobalConfig(config: AppConfig): Promise<void> {
        temperature   = EXCLUDED.temperature,
        max_tokens    = EXCLUDED.max_tokens,
        system_prompt = EXCLUDED.system_prompt,
-       profile_id    = EXCLUDED.profile_id`,
+       profile_id    = EXCLUDED.profile_id,
+       language      = EXCLUDED.language`,
     [
       config.baseUrl,
       config.apiKey,
@@ -162,6 +169,7 @@ export async function saveGlobalConfig(config: AppConfig): Promise<void> {
       config.maxTokens,
       config.systemPrompt,
       config.profileId || null,
+      config.language === 'en' ? 'en' : 'es',
     ],
   )
 }
@@ -176,7 +184,7 @@ export async function saveGlobalSystemPrompt(systemPrompt: string): Promise<void
 
 export async function loadUserConfig(userId: string): Promise<AppConfig> {
   const { rows } = await pool.query(
-    'SELECT base_url, api_key, model, temperature, max_tokens, profile_id FROM user_config WHERE user_id = $1',
+    'SELECT base_url, api_key, model, temperature, max_tokens, profile_id, language FROM user_config WHERE user_id = $1',
     [userId],
   )
   if (rows.length === 0) return { ...defaultConfig }
@@ -188,20 +196,22 @@ export async function loadUserConfig(userId: string): Promise<AppConfig> {
     maxTokens: rows[0].max_tokens ?? 4096,
     systemPrompt: '',
     profileId: rows[0].profile_id ?? '',
+    language: rows[0].language === 'en' ? 'en' : 'es',
   }
 }
 
 export async function saveUserConfig(userId: string, config: Partial<AppConfig>): Promise<void> {
   await pool.query(
-    `INSERT INTO user_config (user_id, base_url, api_key, model, temperature, max_tokens, profile_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO user_config (user_id, base_url, api_key, model, temperature, max_tokens, profile_id, language)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      ON CONFLICT (user_id) DO UPDATE SET
        base_url    = EXCLUDED.base_url,
        api_key     = EXCLUDED.api_key,
        model       = EXCLUDED.model,
        temperature = EXCLUDED.temperature,
        max_tokens  = EXCLUDED.max_tokens,
-       profile_id  = EXCLUDED.profile_id`,
+       profile_id  = EXCLUDED.profile_id,
+       language    = EXCLUDED.language`,
     [
       userId,
       config.baseUrl ?? '',
@@ -210,6 +220,7 @@ export async function saveUserConfig(userId: string, config: Partial<AppConfig>)
       config.temperature ?? 0.7,
       config.maxTokens ?? 4096,
       config.profileId || null,
+      config.language === 'en' ? 'en' : 'es',
     ],
   )
 }
@@ -227,6 +238,7 @@ export async function loadEffectiveConfig(user: User): Promise<AppConfig> {
     maxTokens: userConfig.maxTokens ?? global.maxTokens,
     systemPrompt: global.systemPrompt,
     profileId: userConfig.profileId || global.profileId,
+    language: userConfig.language || global.language,
   }
 }
 

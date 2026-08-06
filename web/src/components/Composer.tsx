@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ImagePlus, Paperclip, Send, Square, X } from 'lucide-react'
 import type { ImageAttachment } from '../types'
+import { useI18n } from '../i18n'
 import { prepareImage } from '../lib/images'
 
 interface ComposerProps {
@@ -13,6 +14,7 @@ interface ComposerProps {
 const MAX_IMAGES = 6
 
 export default function Composer({ onSend, isStreaming, onStop }: ComposerProps) {
+  const { t } = useI18n()
   const [text, setText] = useState('')
   const [images, setImages] = useState<ImageAttachment[]>([])
   const [isDragging, setIsDragging] = useState(false)
@@ -73,7 +75,7 @@ export default function Composer({ onSend, isStreaming, onStop }: ComposerProps)
             className="pointer-events-none absolute -inset-2 z-20 flex items-center justify-center rounded-2xl border-2 border-dashed border-nebula-400/70 bg-ink-900/90 backdrop-blur-sm"
           >
             <p className="flex items-center gap-2 font-display font-semibold text-nebula-300">
-              <ImagePlus size={20} /> Suelta las imágenes aquí
+              <ImagePlus size={20} /> {t('composer.dropImages')}
             </p>
           </motion.div>
         )}
@@ -92,7 +94,7 @@ export default function Composer({ onSend, isStreaming, onStop }: ComposerProps)
                   />
                   <button
                     type="button"
-                    aria-label={`Quitar ${img.name}`}
+                    aria-label={t('composer.removeImage', { name: img.name })}
                     onClick={() => setImages((prev) => prev.filter((i) => i.id !== img.id))}
                     className="absolute -right-1.5 -top-1.5 rounded-full border border-white/15 bg-ink-800 p-0.5 text-mist-400 opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100"
                   >
@@ -107,8 +109,8 @@ export default function Composer({ onSend, isStreaming, onStop }: ComposerProps)
             ref={textareaRef}
             value={text}
             rows={1}
-            aria-label="Mensaje"
-            placeholder={isStreaming ? 'Generando respuesta…' : 'Escribe un mensaje…'}
+            aria-label={t('composer.message')}
+            placeholder={isStreaming ? t('composer.placeholderStreaming') : t('composer.placeholder')}
             onChange={(e) => {
               setText(e.target.value)
               autosize()
@@ -144,7 +146,7 @@ export default function Composer({ onSend, isStreaming, onStop }: ComposerProps)
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          aria-label="Adjuntar imágenes"
+          aria-label={t('composer.attach')}
           disabled={isStreaming || images.length >= MAX_IMAGES}
           className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl text-mist-500 transition-colors hover:bg-white/5 hover:text-nebula-300 disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -155,7 +157,7 @@ export default function Composer({ onSend, isStreaming, onStop }: ComposerProps)
           <button
             type="button"
             onClick={onStop}
-            aria-label="Detener generación"
+            aria-label={t('composer.stop')}
             className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-red-500/90 text-white shadow-[0_4px_16px_rgba(239,68,68,0.4)] transition-all hover:bg-red-500 active:scale-95"
           >
             <Square size={15} fill="currentColor" />
@@ -164,7 +166,7 @@ export default function Composer({ onSend, isStreaming, onStop }: ComposerProps)
           <button
             type="button"
             onClick={handleSend}
-            aria-label="Enviar mensaje"
+            aria-label={t('composer.send')}
             disabled={!text.trim() && images.length === 0}
             className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-nebula-500 to-iris-600 text-white shadow-[0_4px_18px_rgba(139,92,246,0.5)] transition-all hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
           >
@@ -172,9 +174,7 @@ export default function Composer({ onSend, isStreaming, onStop }: ComposerProps)
           </button>
         )}
       </div>
-      <p className="mt-1.5 px-1 text-center text-[11px] text-mist-600">
-        Enter para enviar · Shift+Enter para nueva línea · arrastra o pega imágenes
-      </p>
+      <p className="mt-1.5 px-1 text-center text-[11px] text-mist-600">{t('composer.hint')}</p>
     </div>
   )
 }

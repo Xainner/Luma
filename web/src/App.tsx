@@ -39,6 +39,7 @@ import Logo from './components/Logo'
 import Onboarding from './components/Onboarding'
 import SettingsView from './components/SettingsView'
 import Sidebar from './components/Sidebar'
+import { I18nProvider, translate } from './i18n'
 import { uuid } from './lib/uuid'
 
 function deriveTitle(text: string): string {
@@ -164,6 +165,13 @@ export default function App() {
   async function handleSaveSystemPrompt(prompt: string) {
     await saveSystemPrompt(prompt)
     setConfig((c) => (c ? { ...c, systemPrompt: prompt } : c))
+  }
+
+  async function handleChangeLanguage(language: 'es' | 'en') {
+    if (!config) return
+    const next = { ...config, language }
+    setConfig(next)
+    await saveConfig(next).catch(() => {})
   }
 
   async function handleDiscoverModels(baseUrl?: string, apiKey?: string): Promise<string[]> {
@@ -306,7 +314,8 @@ export default function App() {
         }
       } catch (err) {
         if (!controller.signal.aborted) {
-          const msg = err instanceof Error ? err.message : 'Error de conexión'
+          const msg =
+            err instanceof Error ? err.message : translate(config.language, 'app.errorConnection')
           full += `\n\n> ⚠️ ${msg}`
         }
       } finally {
@@ -326,48 +335,51 @@ export default function App() {
     return true
   }
 
+  const lang = config?.language ?? 'es'
+  const provider = (node: React.ReactNode) => <I18nProvider lang={lang}>{node}</I18nProvider>
+
   if (!booted) {
-    return (
+    return provider(
       <div className="flex h-full items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Logo size={64} radius="rounded-3xl" className="animate-pulse" />
           <Loader2 size={18} className="animate-spin text-mist-500" />
         </div>
-      </div>
+      </div>,
     )
   }
 
   if (!user) {
-    return (
+    return provider(
       <div className="h-full">
         <Login onLogin={handleLogin} />
-      </div>
+      </div>,
     )
   }
 
   if (!config) {
-    return (
+    return provider(
       <div className="flex h-full items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Logo size={64} radius="rounded-3xl" className="animate-pulse" />
           <Loader2 size={18} className="animate-spin text-mist-500" />
         </div>
-      </div>
+      </div>,
     )
   }
 
   if (!config.baseUrl) {
-    return (
+    return provider(
       <div className="h-full">
         <Onboarding
           onComplete={handleOnboardingComplete}
           blocked={configMeta.scope === 'global' && !configMeta.isAdmin}
         />
-      </div>
+      </div>,
     )
   }
 
-  return (
+  return provider(
     <div className="relative flex h-dvh overflow-hidden">
       <Sidebar
         chats={chats}
@@ -423,6 +435,7 @@ export default function App() {
                   onSetProfile={(id) => void handleSetProfile(id)}
                   onSetScope={handleSetScope}
                   onSaveSystemPrompt={handleSaveSystemPrompt}
+                  onLanguageChange={handleChangeLanguage}
                 />
               </motion.div>
             ) : (
@@ -447,6 +460,6 @@ export default function App() {
           </AnimatePresence>
         </main>
       </div>
-    </div>
+    </div>,
   )
 }
