@@ -1,6 +1,8 @@
 <div align="center">
 
-  <img src="web/public/logo.png" alt="Luma" width="130"/>
+  <p align="center">
+    <img src="web/public/logo.png" alt="Luma" width="220"/>
+  </p>
 
   <img src="https://img.shields.io/badge/status-en%20producci%C3%B3n-8b5cf6?style=flat-square" alt="Estado"/>
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=white" alt="React 19"/>
