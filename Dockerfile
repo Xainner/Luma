@@ -20,7 +20,8 @@ FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
-    PORT=3001
+    PORT=3001 \
+    WEB_DIST=/app/web/dist
 COPY --from=server-build /build/server/node_modules ./node_modules
 COPY --from=server-build /build/server/dist ./dist
 COPY --from=web-build /build/web/dist ./web/dist

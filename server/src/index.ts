@@ -16,7 +16,9 @@ import {
 } from './db.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const WEB_DIST = path.resolve(__dirname, '..', '..', 'web', 'dist')
+const WEB_DIST = process.env.WEB_DIST
+  ? path.resolve(process.env.WEB_DIST)
+  : path.resolve(__dirname, '..', '..', 'web', 'dist')
 
 const PORT = Number(process.env.PORT ?? 3001)
 const HOST = process.env.HOST ?? '0.0.0.0'
