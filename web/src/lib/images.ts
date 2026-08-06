@@ -1,4 +1,5 @@
 import type { ImageAttachment } from '../types'
+import { uuid } from './uuid'
 
 const MAX_DIM = 1080
 
@@ -35,7 +36,7 @@ export async function prepareImage(file: File): Promise<ImageAttachment> {
   const optimized = await downscale(dataUrl, MAX_DIM)
   const mime = optimized.slice(5, optimized.indexOf(';')) || file.type || 'image/png'
   return {
-    id: crypto.randomUUID(),
+    id: uuid(),
     name: file.name || 'imagen',
     mime,
     dataUrl: optimized,

@@ -23,6 +23,7 @@ import Logo from './components/Logo'
 import Onboarding from './components/Onboarding'
 import SettingsView from './components/SettingsView'
 import Sidebar from './components/Sidebar'
+import { uuid } from './lib/uuid'
 
 const EMPTY_CONFIG: AppConfig = {
   baseUrl: '',
@@ -202,7 +203,7 @@ export default function App() {
     }
 
     const userMsg: ChatMessage = {
-      id: crypto.randomUUID(),
+      id: uuid(),
       role: 'user',
       content: text,
       images: images.length ? images : undefined,
@@ -214,7 +215,7 @@ export default function App() {
     setActiveChat(base)
     void reloadChats()
 
-    const assistantId = crypto.randomUUID()
+    const assistantId = uuid()
     setActiveChat({
       ...base,
       messages: [...messages, { id: assistantId, role: 'assistant', content: '', createdAt: Date.now() }],
