@@ -494,7 +494,8 @@ app.delete('/api/profiles/:id', async (req: FastifyRequest<{ Params: { id: strin
 /* ---------- Chats (por usuario) ---------- */
 
 app.get('/api/chats', async (req, reply) => {
-  return reply.send({ chats: await listChats(userOf(req).id) })
+  const q = (req.query as { q?: string } | undefined)?.q
+  return reply.send({ chats: await listChats(userOf(req).id, typeof q === 'string' ? q : undefined) })
 })
 
 app.post('/api/chats', async (req, reply) => {

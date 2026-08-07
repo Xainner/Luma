@@ -220,8 +220,9 @@ export async function* streamChat(req: StreamRequest): AsyncGenerator<string> {
 
 /* ---------- Chats ---------- */
 
-export async function listChats(): Promise<ChatMeta[]> {
-  const data = await request<{ chats: ChatMeta[] }>('/api/chats')
+export async function listChats(q?: string): Promise<ChatMeta[]> {
+  const path = q && q.trim() ? `/api/chats?q=${encodeURIComponent(q.trim())}` : '/api/chats'
+  const data = await request<{ chats: ChatMeta[] }>(path)
   return data.chats
 }
 

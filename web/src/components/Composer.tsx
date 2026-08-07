@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ImagePlus, Paperclip, Send, Square, X } from 'lucide-react'
 import type { ImageAttachment } from '../types'
@@ -20,6 +20,14 @@ export default function Composer({ onSend, isStreaming, onStop }: ComposerProps)
   const [isDragging, setIsDragging] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    function focus() {
+      textareaRef.current?.focus()
+    }
+    window.addEventListener('luma:focus-composer', focus)
+    return () => window.removeEventListener('luma:focus-composer', focus)
+  }, [])
 
   function autosize() {
     const el = textareaRef.current

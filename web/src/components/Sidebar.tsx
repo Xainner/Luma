@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { LogOut, MessageSquare, Plus, Settings2, Trash2, X } from 'lucide-react'
+import { LogOut, MessageSquare, Plus, Search, Settings2, Trash2, X } from 'lucide-react'
 import type { ChatMeta, Language, Profile, User } from '../types'
+import { listChats } from '../lib/api'
 import { useI18n } from '../i18n'
 import { labelClass } from '../lib/ui'
 import Logo from './Logo'
@@ -57,6 +59,26 @@ export default function Sidebar({
   onProfileChange,
 }: SidebarProps) {
   const { t, lang } = useI18n()
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<ChatMeta[] | null>(null)
+
+  useEffect(() => {
+    if (!query.trim()) {
+      setResults(null)
+      return
+    }
+    const timer = setTimeout(async () => {
+      try {
+        setResults(await listChats(query))
+      } catch {
+        setResults([])
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [query])
+
+  const shown = results ?? chats
+  const searching = query.trim().length > 0
 
   return (
     <>
@@ -107,17 +129,39 @@ export default function Sidebar({
 
         {/* Chats */}
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
+          <div className="relative mb-2">
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-mist-600" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t('sidebar.search')}
+              aria-label={t('sidebar.search')}
+              className="w-full rounded-xl border border-white/10 bg-ink-850 py-2 pr-8 pl-8 text-sm text-mist-100 placeholder:text-mist-600 transition-colors focus:border-nebula-400/60 focus:outline-none"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                aria-label={t('sidebar.closeMenu')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-mist-500 hover:text-mist-200"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+
           <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-widest text-mist-600">
             {t('sidebar.chats')}
           </p>
-          {chats.length === 0 && (
+          {shown.length === 0 && (
             <p className="px-2 py-6 text-center text-sm whitespace-pre-line text-mist-600">
-              {t('sidebar.noChats')}
+              {searching ? t('sidebar.noResults') : t('sidebar.noChats')}
             </p>
           )}
           <ul className="space-y-1">
             <AnimatePresence initial={false}>
-              {chats.map((chat) => (
+              {shown.map((chat) => (
                 <motion.li
                   key={chat.id}
                   layout

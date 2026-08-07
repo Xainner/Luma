@@ -375,11 +375,19 @@ export interface ChatMeta {
   updatedAt: number
 }
 
-export async function listChats(userId: string): Promise<ChatMeta[]> {
-  const { rows } = await pool.query(
-    'SELECT id, title, updated_at FROM chats WHERE user_id = $1 ORDER BY updated_at DESC',
-    [userId],
-  )
+function escapeLike(s: string): string {
+  return s.replace(/[\\%_]/g, (c) => `\\${c}`)
+}
+
+export async function listChats(userId: string, q?: string): Promise<ChatMeta[]> {
+  const params: unknown[] = [userId]
+  let sql = 'SELECT id, title, updated_at FROM chats WHERE user_id = $1'
+  if (q && q.trim()) {
+    sql += " AND (title ILIKE $2 OR messages::text ILIKE $2)"
+    params.push(`%${escapeLike(q.trim())}%`)
+  }
+  sql += ' ORDER BY updated_at DESC'
+  const { rows } = await pool.query(sql, params)
   return rows.map((r) => ({
     id: r.id as string,
     title: r.title as string,

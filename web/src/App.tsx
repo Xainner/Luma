@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Loader2 } from 'lucide-react'
+import { FileDown, Languages, Loader2, LogOut, Plus, Settings2 } from 'lucide-react'
 import type {
   AppConfig,
   Chat,
@@ -34,12 +34,14 @@ import {
   wipeData,
 } from './lib/api'
 import ChatView from './components/ChatView'
+import CommandPalette, { type PaletteItem } from './components/CommandPalette'
 import Login from './components/Login'
 import Logo from './components/Logo'
 import Onboarding from './components/Onboarding'
 import SettingsView from './components/SettingsView'
 import Sidebar from './components/Sidebar'
 import { I18nProvider, translate } from './i18n'
+import { exportChatJson, exportChatMarkdown, exportChatPdf } from './lib/export'
 import { uuid } from './lib/uuid'
 
 function deriveTitle(text: string): string {
@@ -61,6 +63,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [models, setModels] = useState<string[]>([])
   const [profiles, setProfiles] = useState<Profile[]>([])
+  const [paletteOpen, setPaletteOpen] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const streamingRef = useRef(false)
 
@@ -255,52 +258,26 @@ export default function App() {
     abortRef.current?.abort()
   }
 
-  async function handleSend(text: string, images: ImageAttachment[]): Promise<boolean> {
-    if (isStreaming || streamingRef.current || !config) return false
-    if (!config.model) {
-      setView('settings')
-      return false
-    }
-
-    let chat = activeChat
-    try {
-      if (!chat) {
-        chat = await createChat()
-        setActiveId(chat.id)
-      }
-    } catch {
-      return false
-    }
-
-    const userMsg: ChatMessage = {
-      id: uuid(),
-      role: 'user',
-      content: text,
-      images: images.length ? images : undefined,
-      createdAt: Date.now(),
-    }
-    const messages = [...chat.messages, userMsg]
-    const base: Chat = { ...chat, messages, updatedAt: Date.now() }
-    if (!base.title && text) base.title = deriveTitle(text)
-    setActiveChat(base)
-    void reloadChats()
-
+  function startGeneration(base: Chat, contextMessages: ChatMessage[], autoTitle = false) {
+    if (!config) return
     const assistantId = uuid()
     setActiveChat({
       ...base,
-      messages: [...messages, { id: assistantId, role: 'assistant', content: '', createdAt: Date.now() }],
+      messages: [
+        ...contextMessages,
+        { id: assistantId, role: 'assistant', content: '', createdAt: Date.now() },
+      ],
     })
-
     streamingRef.current = true
     setIsStreaming(true)
 
+    const controller = new AbortController()
+    abortRef.current = controller
+    let full = ''
     void (async () => {
-      const controller = new AbortController()
-      abortRef.current = controller
-      let full = ''
       try {
         for await (const delta of streamChat({
-          messages,
+          messages: contextMessages,
           model: config.model,
           temperature: config.temperature,
           maxTokens: config.maxTokens,
@@ -326,23 +303,189 @@ export default function App() {
         }
       } finally {
         const finalMessages = full
-          ? [...messages, { id: assistantId, role: 'assistant' as const, content: full, createdAt: Date.now() }]
-          : messages
+          ? [
+              ...contextMessages,
+              { id: assistantId, role: 'assistant' as const, content: full, createdAt: Date.now() },
+            ]
+          : contextMessages
         const finalChat: Chat = { ...base, updatedAt: Date.now(), messages: finalMessages }
         void updateChat(finalChat).catch(() => {})
         setActiveChat((prev) => (prev && prev.id === base.id ? finalChat : prev))
         abortRef.current = null
         streamingRef.current = false
         setIsStreaming(false)
-        await reloadChats()
+        void reloadChats()
+        if (autoTitle && full && contextMessages.some((m) => m.role === 'user')) {
+          void generateChatTitle(finalChat)
+        }
       }
     })()
+  }
 
+  async function generateChatTitle(chat: Chat) {
+    if (!config || streamingRef.current) return
+    const firstUser = chat.messages.find((m) => m.role === 'user')
+    if (!firstUser) return
+    const controller = new AbortController()
+    let title = ''
+    try {
+      for await (const delta of streamChat({
+        messages: [
+          {
+            id: uuid(),
+            role: 'user',
+            content: `Genera un título muy corto (máx 6 palabras, solo el título, sin comillas ni puntos) para una conversación que empieza así: "${firstUser.content.slice(0, 200)}"`,
+            createdAt: Date.now(),
+          },
+        ],
+        model: config.model,
+        temperature: 0.3,
+        maxTokens: 32,
+        signal: controller.signal,
+      })) {
+        title += delta
+        if (title.length >= 48) controller.abort()
+      }
+    } catch {
+      /* sin título automático */
+    }
+    title = title.trim().replace(/^["'“¿?]*/, '').replace(/["'”…]+$/, '').split('\n')[0].trim()
+    if (!title) return
+    const short = title.slice(0, 60)
+    const next = { ...chat, title: short, updatedAt: Date.now() }
+    void updateChat(next).catch(() => {})
+    setActiveChat((prev) => (prev && prev.id === chat.id ? { ...prev, title: short } : prev))
+    void reloadChats()
+  }
+
+  async function handleSend(text: string, images: ImageAttachment[]): Promise<boolean> {
+    if (isStreaming || streamingRef.current || !config) return false
+    if (!config.model) {
+      setView('settings')
+      return false
+    }
+
+    let chat = activeChat
+    try {
+      if (!chat) {
+        chat = await createChat()
+        setActiveId(chat.id)
+      }
+    } catch {
+      return false
+    }
+
+    const isFirst = chat.messages.length === 0
+    const userMsg: ChatMessage = {
+      id: uuid(),
+      role: 'user',
+      content: text,
+      images: images.length ? images : undefined,
+      createdAt: Date.now(),
+    }
+    const messages = [...chat.messages, userMsg]
+    const base: Chat = { ...chat, messages, updatedAt: Date.now() }
+    if (!base.title && text) base.title = deriveTitle(text)
+    setActiveChat(base)
+    void reloadChats()
+    startGeneration(base, messages, isFirst)
     return true
   }
 
+  function handleRegenerate() {
+    const chat = activeChat
+    if (!chat || streamingRef.current || !config) return
+    const last = chat.messages[chat.messages.length - 1]
+    if (!last || last.role !== 'assistant') return
+    const contextMessages = chat.messages.slice(0, -1)
+    startGeneration({ ...chat, messages: contextMessages, updatedAt: Date.now() }, contextMessages)
+  }
+
+  function handleEditMessage(messageId: string, newText: string) {
+    const chat = activeChat
+    if (!chat || streamingRef.current || !config) return
+    const idx = chat.messages.findIndex((m) => m.id === messageId)
+    if (idx < 0 || chat.messages[idx].role !== 'user' || !newText.trim()) return
+    const edited = chat.messages.map((m, i) => (i === idx ? { ...m, content: newText } : m))
+    const truncated = edited.slice(0, idx + 1)
+    const base: Chat = { ...chat, messages: truncated, updatedAt: Date.now() }
+    if (!base.title && newText) base.title = deriveTitle(newText)
+    setActiveChat(base)
+    void reloadChats()
+    startGeneration(base, truncated)
+  }
+
+  async function handleDeleteMessage(messageId: string) {
+    const chat = activeChat
+    if (!chat || streamingRef.current) return
+    const messages = chat.messages.filter((m) => m.id !== messageId)
+    const next: Chat = { ...chat, messages, updatedAt: Date.now() }
+    if (messages.length === 0) next.title = ''
+    setActiveChat(next)
+    await updateChat(next).catch(() => {})
+    void reloadChats()
+  }
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const mod = e.ctrlKey || e.metaKey
+      if (mod && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault()
+        setPaletteOpen((p) => !p)
+      } else if (mod && (e.key === 'n' || e.key === 'N')) {
+        e.preventDefault()
+        handleNewChat()
+      } else if (e.key === 'Escape') {
+        setPaletteOpen((p) => {
+          if (p) return false
+          handleStop()
+          return p
+        })
+      } else if (e.key === '/' && !paletteOpen) {
+        const target = e.target as HTMLElement | null
+        const tag = target?.tagName
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT' && !target?.isContentEditable) {
+          e.preventDefault()
+          window.dispatchEvent(new CustomEvent('luma:focus-composer'))
+        }
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  })
+
   const lang = config?.language ?? 'es'
   const provider = (node: React.ReactNode) => <I18nProvider lang={lang}>{node}</I18nProvider>
+
+  const paletteItems: PaletteItem[] = [
+    {
+      key: 'new',
+      label: translate(lang, 'sidebar.newChat'),
+      icon: Plus,
+      hint: 'Ctrl N',
+      onSelect: handleNewChat,
+    },
+    {
+      key: 'settings',
+      label: translate(lang, 'sidebar.settings'),
+      icon: Settings2,
+      onSelect: () => setView('settings'),
+    },
+    ...(activeChat
+      ? [
+          { key: 'export-md', label: `${translate(lang, 'export.menu')} (MD)`, icon: FileDown, onSelect: () => exportChatMarkdown(activeChat) },
+          { key: 'export-json', label: `${translate(lang, 'export.menu')} (JSON)`, icon: FileDown, onSelect: () => exportChatJson(activeChat) },
+          { key: 'export-pdf', label: `${translate(lang, 'export.menu')} (PDF)`, icon: FileDown, onSelect: () => exportChatPdf(activeChat) },
+        ]
+      : []),
+    {
+      key: 'lang',
+      label: lang === 'es' ? 'English' : 'Español',
+      icon: Languages,
+      onSelect: () => handleChangeLanguage(lang === 'es' ? 'en' : 'es'),
+    },
+    { key: 'logout', label: translate(lang, 'sidebar.logout'), icon: LogOut, onSelect: () => void handleLogout() },
+  ]
 
   if (!booted) {
     return provider(
@@ -461,12 +604,16 @@ export default function App() {
                   onStop={handleStop}
                   onNewChat={handleNewChat}
                   onOpenSidebar={() => setSidebarOpen(true)}
+                  onEditMessage={handleEditMessage}
+                  onDeleteMessage={(id) => void handleDeleteMessage(id)}
+                  onRegenerate={handleRegenerate}
                 />
               </motion.div>
             )}
           </AnimatePresence>
         </main>
       </div>
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} items={paletteItems} />
     </div>,
   )
 }

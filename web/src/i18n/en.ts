@@ -50,6 +50,8 @@ export const en: Record<I18nKey, string> = {
   'sidebar.logout': 'Sign out',
   'sidebar.closeMenu': 'Close menu',
   'sidebar.deleteChat': 'Delete {title}',
+  'sidebar.search': 'Search conversations…',
+  'sidebar.noResults': 'No results',
 
   'chat.openMenu': 'Open menu',
   'chat.new': 'New',
@@ -61,6 +63,12 @@ export const en: Record<I18nKey, string> = {
   'chat.suggestion2': 'Write a short poem about technology and silence',
   'chat.suggestion3': 'Give me 10 creative ideas for a personal project',
   'chat.suggestion4': 'Help me debug a piece of code',
+  'chat.regenerate': 'Regenerate response',
+  'chat.edit': 'Edit message',
+  'chat.delete': 'Delete message',
+  'chat.save': 'Save',
+  'chat.cancel': 'Cancel',
+  'chat.editPlaceholder': 'Edit your message…',
 
   'composer.placeholder': 'Type a message…',
   'composer.placeholderStreaming': 'Generating response…',
@@ -160,6 +168,14 @@ export const en: Record<I18nKey, string> = {
   'profiles.delete': 'Delete',
   'profiles.confirm': 'Confirm?',
   'profiles.unnamed': 'Unnamed',
+
+  'export.menu': 'Export conversation',
+  'export.md': 'Markdown',
+  'export.json': 'JSON',
+  'export.pdf': 'PDF',
+
+  'palette.title': 'Commands',
+  'palette.close': 'Close (Esc)',
 
   'apikey.label': 'API key',
   'apikey.optional': '(optional)',

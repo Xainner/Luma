@@ -52,6 +52,8 @@ export const es = {
   'sidebar.logout': 'Cerrar sesión',
   'sidebar.closeMenu': 'Cerrar menú',
   'sidebar.deleteChat': 'Eliminar {title}',
+  'sidebar.search': 'Buscar conversaciones…',
+  'sidebar.noResults': 'Sin resultados',
 
   /* Chat */
   'chat.openMenu': 'Abrir menú',
@@ -64,6 +66,12 @@ export const es = {
   'chat.suggestion2': 'Escríbeme un poema corto sobre la tecnología y el silencio',
   'chat.suggestion3': 'Dame 10 ideas creativas para un proyecto personal',
   'chat.suggestion4': 'Ayúdame a depurar un fragmento de código',
+  'chat.regenerate': 'Regenerar respuesta',
+  'chat.edit': 'Editar mensaje',
+  'chat.delete': 'Eliminar mensaje',
+  'chat.save': 'Guardar',
+  'chat.cancel': 'Cancelar',
+  'chat.editPlaceholder': 'Edita tu mensaje…',
 
   /* Composer */
   'composer.placeholder': 'Escribe un mensaje…',
@@ -169,6 +177,16 @@ export const es = {
   'profiles.delete': 'Eliminar',
   'profiles.confirm': '¿Confirmar?',
   'profiles.unnamed': 'Sin nombre',
+
+  /* Exportar */
+  'export.menu': 'Exportar conversación',
+  'export.md': 'Markdown',
+  'export.json': 'JSON',
+  'export.pdf': 'PDF',
+
+  /* Palette */
+  'palette.title': 'Comandos',
+  'palette.close': 'Cerrar (Esc)',
 
   /* API key */
   'apikey.label': 'API key',
