@@ -142,7 +142,7 @@ export default function ChatView({
                   aria-hidden="true"
                   className="absolute inset-0 -m-5 animate-ping rounded-3xl bg-iris-500/20 motion-safe:[animation-duration:2.4s]"
                 />
-                <Logo size={72} radius="rounded-3xl" className="relative" />
+                <Logo size={96} radius="rounded-3xl" className="relative" />
               </motion.div>
 
               <motion.div

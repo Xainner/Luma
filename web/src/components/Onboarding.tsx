@@ -85,7 +85,7 @@ export default function Onboarding({ onComplete, blocked = false }: OnboardingPr
     return (
       <div className="flex h-full items-center justify-center px-5">
         <div className="max-w-sm rounded-3xl border border-white/10 bg-ink-900/70 p-8 text-center shadow-[0_20px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl">
-          <Logo size={56} className="mx-auto" />
+          <Logo size={72} className="mx-auto" />
           <h2 className="mt-4 font-display text-xl font-bold text-mist-100">{t('onboarding.waitingTitle')}</h2>
           <p className="mt-2 text-sm leading-relaxed text-mist-500">{t('onboarding.waitingDesc')}</p>
         </div>
@@ -139,7 +139,7 @@ export default function Onboarding({ onComplete, blocked = false }: OnboardingPr
         {/* Hero */}
         <motion.div variants={item} className="hidden flex-col gap-7 lg:flex">
           <div className="flex items-center gap-4">
-            <Logo size={64} />
+            <Logo size={96} />
             <div>
               <p className="font-display text-3xl font-bold tracking-tight text-mist-100">Luma</p>
               <p className="text-sm text-mist-500">{t('onboarding.tagline')}</p>
@@ -175,7 +175,7 @@ export default function Onboarding({ onComplete, blocked = false }: OnboardingPr
         <motion.div variants={item} className="w-full">
           <div className="rounded-3xl border border-white/10 bg-ink-900/70 p-7 shadow-[0_20px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:p-8">
             <div className="mb-6 flex items-center gap-3 lg:hidden">
-              <Logo size={40} />
+              <Logo size={48} />
               <div>
                 <p className="font-display text-xl font-bold text-mist-100">Luma</p>
                 <p className="text-xs text-mist-500">{t('onboarding.tagline')}</p>

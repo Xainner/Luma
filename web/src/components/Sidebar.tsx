@@ -103,7 +103,7 @@ export default function Sidebar({
         {/* Header */}
         <div className="flex items-center justify-between px-4 pt-4 pb-3">
           <div className="flex items-center gap-2.5">
-            <Logo size={34} />
+            <Logo size={40} />
             <span className="font-display text-lg font-bold tracking-tight text-mist-100">Luma</span>
           </div>
           <button
