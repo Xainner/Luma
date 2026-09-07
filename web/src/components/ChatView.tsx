@@ -3,7 +3,8 @@ import { motion } from 'framer-motion'
 import { Virtualizer, type VirtualizerHandle } from 'virtua'
 import type { Chat, ImageAttachment, Profile, ThoughtEffort, VideoAttachment } from '../types'
 import { useI18n, type I18nKey } from '../i18n'
-import Composer from './Composer'
+import { useComposerStore } from '../stores/composer'
+import Composer from './composer/Composer'
 import Logo from './Logo'
 import MessageBubble from './MessageBubble'
 
@@ -19,6 +20,7 @@ interface ChatViewProps {
   profiles: Profile[]
   profileId: string
   onProfileChange: (id: string) => void
+  onOpenSettings: () => void
   onSend: (text: string, images: ImageAttachment[], videos: VideoAttachment[]) => Promise<boolean>
   onStop: () => void
   onEditMessage: (id: string, newText: string) => void
@@ -45,6 +47,7 @@ export default function ChatView({
   profiles,
   profileId,
   onProfileChange,
+  onOpenSettings,
   onSend,
   onStop,
   onEditMessage,
@@ -55,9 +58,12 @@ export default function ChatView({
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtRef = useRef<VirtualizerHandle>(null)
   const [atBottom, setAtBottom] = useState(true)
+  const [isDragging, setIsDragging] = useState(false)
+  const hasDraft = useComposerStore((s) => s.text.trim().length > 0)
 
   const messages = useMemo(() => chat?.messages ?? [], [chat])
   const lastId = messages.length > 0 ? messages[messages.length - 1].id : null
+  const empty = messages.length === 0
 
   function handleScroll() {
     const el = scrollRef.current
@@ -71,96 +77,131 @@ export default function ChatView({
     }
   }, [messages, isStreaming, atBottom])
 
+  const composer = (
+    <Composer
+      placement={empty ? 'centered' : 'bottom'}
+      onSend={onSend}
+      isStreaming={isStreaming}
+      onStop={onStop}
+      thinkingEffort={thinkingEffort}
+      thinkingModel={thinkingModel}
+      onThinkingChange={onThinkingChange}
+      models={models}
+      model={model}
+      onModelChange={onModelChange}
+      profiles={profiles}
+      profileId={profileId}
+      onProfileChange={onProfileChange}
+      onOpenSettings={onOpenSettings}
+    />
+  )
+
   return (
-    <div className="flex h-full flex-col">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto" onScroll={handleScroll}>
-        {messages.length === 0 ? (
-          <div className="mx-auto max-w-3xl px-4 py-6">
-            <div className="flex flex-col items-center py-12 text-center">
-              <motion.div
-                initial={{ scale: 0.6, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 18 }}
-                className="relative mb-8"
-              >
-                <span
-                  aria-hidden="true"
-                  className="absolute inset-0 -m-5 animate-ping rounded-3xl bg-iris-500/20 motion-safe:[animation-duration:2.4s]"
-                />
-                <Logo size={96} radius="rounded-3xl" className="relative" />
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1, duration: 0.5 }}
-              >
-                <h2 className="font-display text-3xl font-bold tracking-tight text-[var(--text)]">
-                  {t('chat.emptyTitle')}
-                </h2>
-                <p className="mx-auto mt-2 max-w-md text-sm text-[var(--text-muted)]">
-                  {t('chat.emptyDesc')}
-                </p>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2, duration: 0.5 }}
-                className="mt-8 grid w-full max-w-xl gap-2 sm:grid-cols-2"
-              >
-                {SUGGESTIONS.map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => void onSend(t(k), [], [])}
-                    className="rounded-2xl border border-[var(--border)] bg-[var(--bg-subtle)] px-4 py-3 text-left text-sm text-[var(--text-muted)] transition-all hover:border-[var(--accent)]/40 hover:bg-[var(--bg-hover)] hover:text-[var(--text)] active:scale-[0.98]"
-                  >
-                    {t(k)}
-                  </button>
-                ))}
-              </motion.div>
-            </div>
-          </div>
-        ) : (
-          <Virtualizer ref={virtRef} scrollRef={scrollRef} data={messages} bufferSize={800}>
-            {(m, index) => (
-              <div
-                key={m.id}
-                className={`mx-auto max-w-3xl px-4 ${index === 0 ? 'pt-6' : 'pt-3'} pb-3`}
-              >
-                <MessageBubble
-                  message={m}
-                  isLast={m.id === lastId}
-                  isStreaming={isStreaming}
-                  onEdit={onEditMessage}
-                  onDelete={onDeleteMessage}
-                  onRegenerate={onRegenerate}
-                />
-              </div>
-            )}
-          </Virtualizer>
-        )}
-      </div>
-
-      <div className="shrink-0 border-t border-[var(--border)] px-4 pt-3 pb-4">
-        <div className="mx-auto max-w-3xl">
-          <Composer
-            onSend={onSend}
-            isStreaming={isStreaming}
-            onStop={onStop}
-            thinkingEffort={thinkingEffort}
-            thinkingModel={thinkingModel}
-            onThinkingChange={onThinkingChange}
-            models={models}
-            model={model}
-            onModelChange={onModelChange}
-            profiles={profiles}
-            profileId={profileId}
-            onProfileChange={onProfileChange}
-          />
+    <div
+      className="flex h-full flex-col"
+      onDragEnter={(e) => {
+        e.preventDefault()
+        setIsDragging(true)
+      }}
+      onDragOver={(e) => e.preventDefault()}
+      onDragLeave={(e) => {
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return
+        setIsDragging(false)
+      }}
+      onDrop={(e) => {
+        e.preventDefault()
+        setIsDragging(false)
+        void useComposerStore.getState().addFiles(e.dataTransfer.files)
+      }}
+    >
+      {isDragging && (
+        <div className="pointer-events-none absolute inset-3 z-20 flex flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-[var(--accent-2)]/60 bg-[var(--accent-2)]/5 backdrop-blur-sm">
+          <p className="text-sm font-semibold text-[var(--text)]">{t('composer.dropMedia')}</p>
+          <p className="text-xs text-[var(--text-muted)]">{t('onboarding.featureImagesDesc')}</p>
         </div>
-      </div>
+      )}
+
+      {empty ? (
+        <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            className="flex w-full max-w-2xl flex-col items-center"
+            style={{ marginTop: '-6vh' }}
+          >
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute rounded-full blur-3xl"
+              style={{
+                width: 320,
+                height: 200,
+                background: 'radial-gradient(closest-side, rgba(139,92,246,0.16), transparent)',
+              }}
+            />
+            <Logo size={48} radius="rounded-2xl" className="relative" />
+            <h2 className="relative mt-4 text-center text-3xl font-bold tracking-tight text-[var(--text)]">
+              {t('chat.emptyTitle')}
+            </h2>
+            <p className="relative mt-1.5 text-center text-sm text-[var(--text-muted)]">
+              {t('chat.emptySubtitle')}
+            </p>
+            <motion.div
+              layout
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+              className="relative mt-6 w-full"
+            >
+              {composer}
+            </motion.div>
+            <div
+              className={`mt-4 flex flex-wrap justify-center gap-2 transition-opacity duration-200 ${hasDraft ? 'pointer-events-none opacity-30' : 'opacity-100'}`}
+            >
+              {SUGGESTIONS.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => void onSend(t(k), [], [])}
+                  className="h-11 rounded-full border border-[var(--border)] bg-[var(--bg-subtle)] px-4 text-[13px] text-[var(--text-muted)] transition-all hover:border-[var(--accent)]/40 hover:text-[var(--text)] active:scale-[0.98]"
+                >
+                  {t(k)}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      ) : (
+        <>
+          <div ref={scrollRef} className="flex-1 overflow-y-auto" onScroll={handleScroll}>
+            <Virtualizer ref={virtRef} scrollRef={scrollRef} data={messages} bufferSize={800}>
+              {(m, index) => (
+                <div
+                  key={m.id}
+                  className={`mx-auto max-w-3xl px-4 ${index === 0 ? 'pt-6' : 'pt-3'} pb-3`}
+                >
+                  <MessageBubble
+                    message={m}
+                    isLast={m.id === lastId}
+                    isStreaming={isStreaming}
+                    onEdit={onEditMessage}
+                    onDelete={onDeleteMessage}
+                    onRegenerate={onRegenerate}
+                  />
+                </div>
+              )}
+            </Virtualizer>
+          </div>
+          <div className="shrink-0 border-t border-[var(--border)] px-4 pt-3 pb-4">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+              className="mx-auto max-w-3xl"
+            >
+              {composer}
+            </motion.div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

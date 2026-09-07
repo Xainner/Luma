@@ -713,6 +713,7 @@ export default function App() {
               profiles={profiles}
               profileId={config.profileId}
               onProfileChange={(id) => void handleSetProfile(id)}
+              onOpenSettings={() => goSettings()}
               onSend={(t, imgs, vids) => handleSend(t, imgs, vids)}
               onStop={handleStop}
               onEditMessage={handleEditMessage}
