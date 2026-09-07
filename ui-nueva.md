@@ -2647,12 +2647,12 @@ El rework NO se considera terminado hasta cumplir:
 
 ## Chat
 
-- [ ] Mensaje user neutral.
-- [ ] Respuesta assistant sin card pesada.
-- [ ] Reasoning profesional y colapsable.
+- [x] Mensaje user neutral.
+- [x] Respuesta assistant sin card pesada.
+- [x] Reasoning profesional y colapsable.
 - [x] Stop integrado en Send.
-- [ ] Scroll inteligente.
-- [ ] Virtualización intacta.
+- [x] Scroll inteligente.
+- [x] Virtualización intacta.
 
 ## Settings
 
