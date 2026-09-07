@@ -2629,12 +2629,12 @@ El rework NO se considera terminado hasta cumplir:
 
 ## Chat nuevo
 
-- [ ] Composer centrado.
-- [ ] Modelo dentro del composer.
-- [ ] Thinking dentro del composer.
-- [ ] Perfil dentro del composer o accesible desde su toolbar en móvil.
-- [ ] Sugerencias visibles sin competir con el composer.
-- [ ] Al enviar, el mismo composer pasa al bottom sin perder estado.
+- [x] Composer centrado.
+- [x] Modelo dentro del composer.
+- [x] Thinking dentro del composer.
+- [x] Perfil dentro del composer o accesible desde su toolbar en móvil.
+- [x] Sugerencias visibles sin competir con el composer.
+- [x] Al enviar, el mismo composer pasa al bottom sin perder estado.
 
 ## Sidebar
 
