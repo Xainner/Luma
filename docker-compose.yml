@@ -6,7 +6,7 @@ services:
     container_name: llm-chat-db
     restart: unless-stopped
     # Solo se levanta si usás PostgreSQL: docker compose --profile postgres up -d
-    profiles: ["postgres"]
+    profiles: ['postgres']
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-luma}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
@@ -14,9 +14,9 @@ services:
     volumes:
       - ./db-data:/var/lib/postgresql/data
     ports:
-      - "17016:5432"
+      - '17016:5432'
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-luma} -d ${POSTGRES_DB:-luma}"]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-luma} -d ${POSTGRES_DB:-luma}']
       interval: 5s
       timeout: 3s
       retries: 12
@@ -36,6 +36,6 @@ services:
       HOST: 0.0.0.0
       PORT: 3001
     ports:
-      - "17015:3001"
+      - '17015:3001'
     volumes:
       - ./data:/app/data

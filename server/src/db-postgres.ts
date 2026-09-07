@@ -1,7 +1,6 @@
 import pg from 'pg'
 import { randomBytes } from 'node:crypto'
 import {
-  checkPassword,
   defaultConfig,
   escapeLike,
   hashPassword,
@@ -16,7 +15,8 @@ import {
   type User,
 } from './db-shared.js'
 
-const connectionString = process.env.DATABASE_URL ?? 'postgres://luma:change-me@localhost:17016/luma'
+const connectionString =
+  process.env.DATABASE_URL ?? 'postgres://luma:change-me@localhost:17016/luma'
 
 const pool = new pg.Pool({ connectionString, max: 5 })
 
@@ -201,25 +201,43 @@ export async function saveUserConfig(userId: string, config: Partial<AppConfig>)
   )
 }
 
-export const loadEffectiveConfig = makeLoadEffectiveConfig({ loadGlobalConfig, getConfigScope, loadUserConfig })
+export const loadEffectiveConfig = makeLoadEffectiveConfig({
+  loadGlobalConfig,
+  getConfigScope,
+  loadUserConfig,
+})
 
 /* ---------- Users / auth ---------- */
 
-export async function createUser(email: string, password: string, role: User['role']): Promise<User> {
+export async function createUser(
+  email: string,
+  password: string,
+  role: User['role'],
+): Promise<User> {
   const id = randomBytes(16).toString('hex')
-  await pool.query(
-    'INSERT INTO users (id, email, password_hash, role) VALUES ($1, $2, $3, $4)',
-    [id, email, hashPassword(password), role],
-  )
+  await pool.query('INSERT INTO users (id, email, password_hash, role) VALUES ($1, $2, $3, $4)', [
+    id,
+    email,
+    hashPassword(password),
+    role,
+  ])
   return { id, email, role }
 }
 
-export async function findUserByEmail(email: string): Promise<(User & { passwordHash: string }) | null> {
-  const { rows } = await pool.query('SELECT id, email, role, password_hash FROM users WHERE email = $1', [
-    email,
-  ])
+export async function findUserByEmail(
+  email: string,
+): Promise<(User & { passwordHash: string }) | null> {
+  const { rows } = await pool.query(
+    'SELECT id, email, role, password_hash FROM users WHERE email = $1',
+    [email],
+  )
   if (rows.length === 0) return null
-  return { id: rows[0].id, email: rows[0].email, role: rows[0].role, passwordHash: rows[0].password_hash }
+  return {
+    id: rows[0].id,
+    email: rows[0].email,
+    role: rows[0].role,
+    passwordHash: rows[0].password_hash,
+  }
 }
 
 export async function getUserById(id: string): Promise<User | null> {
@@ -228,7 +246,9 @@ export async function getUserById(id: string): Promise<User | null> {
 }
 
 export async function listUsers(): Promise<Array<User & { createdAt: number }>> {
-  const { rows } = await pool.query('SELECT id, email, role, created_at FROM users ORDER BY created_at ASC')
+  const { rows } = await pool.query(
+    'SELECT id, email, role, created_at FROM users ORDER BY created_at ASC',
+  )
   return rows.map((r) => ({
     id: r.id as string,
     email: r.email as string,
@@ -242,7 +262,10 @@ export async function updateUserRole(id: string, role: User['role']): Promise<vo
 }
 
 export async function updateUserPassword(id: string, password: string): Promise<void> {
-  await pool.query('UPDATE users SET password_hash = $2 WHERE id = $1', [id, hashPassword(password)])
+  await pool.query('UPDATE users SET password_hash = $2 WHERE id = $1', [
+    id,
+    hashPassword(password),
+  ])
 }
 
 export async function deleteUser(id: string): Promise<void> {
@@ -271,7 +294,9 @@ export async function deleteSession(token: string): Promise<void> {
 /* ---------- Profiles ---------- */
 
 export async function listProfiles(): Promise<Profile[]> {
-  const { rows } = await pool.query('SELECT id, name, master_prompt, emoji, color FROM profiles ORDER BY created_at ASC')
+  const { rows } = await pool.query(
+    'SELECT id, name, master_prompt, emoji, color FROM profiles ORDER BY created_at ASC',
+  )
   return rows.map(rowToProfile)
 }
 
@@ -307,7 +332,7 @@ export async function listChats(userId: string, q?: string): Promise<ChatMeta[]>
   const params: unknown[] = [userId]
   let sql = 'SELECT id, title, updated_at FROM chats WHERE user_id = $1'
   if (q && q.trim()) {
-    sql += " AND (title ILIKE $2 OR messages::text ILIKE $2)"
+    sql += ' AND (title ILIKE $2 OR messages::text ILIKE $2)'
     params.push(`%${escapeLike(q.trim())}%`)
   }
   sql += ' ORDER BY updated_at DESC'
@@ -350,7 +375,14 @@ export async function saveChat(chat: Chat, userId: string): Promise<void> {
        user_id    = EXCLUDED.user_id,
        updated_at = EXCLUDED.updated_at,
        messages   = EXCLUDED.messages`,
-    [chat.id, chat.title, userId, new Date(chat.createdAt), new Date(chat.updatedAt), JSON.stringify(chat.messages)],
+    [
+      chat.id,
+      chat.title,
+      userId,
+      new Date(chat.createdAt),
+      new Date(chat.updatedAt),
+      JSON.stringify(chat.messages),
+    ],
   )
 }
 

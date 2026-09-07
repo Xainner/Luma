@@ -11,7 +11,13 @@ interface ApiKeyFieldProps {
   hasStored?: boolean
 }
 
-export default function ApiKeyField({ id, value, onChange, disabled, hasStored }: ApiKeyFieldProps) {
+export default function ApiKeyField({
+  id,
+  value,
+  onChange,
+  disabled,
+  hasStored,
+}: ApiKeyFieldProps) {
   const { t } = useI18n()
   const [show, setShow] = useState(false)
   return (

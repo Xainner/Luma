@@ -40,7 +40,9 @@ export default function CommandPalette({ open, onClose, items }: CommandPaletteP
             aria-label={t('palette.title')}
           >
             <div className="flex items-center justify-between border-b border-white/8 px-4 py-3">
-              <span className="font-display text-sm font-bold text-mist-100">{t('palette.title')}</span>
+              <span className="font-display text-sm font-bold text-mist-100">
+                {t('palette.title')}
+              </span>
               <span className="text-xs text-mist-600">{t('palette.close')}</span>
             </div>
             <ul className="max-h-80 overflow-y-auto p-2">

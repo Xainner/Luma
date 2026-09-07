@@ -88,8 +88,12 @@ export default function Onboarding({ onComplete, blocked = false }: OnboardingPr
       <div className="flex h-full items-center justify-center px-5">
         <div className="max-w-sm rounded-3xl border border-white/10 bg-ink-900/70 p-8 text-center shadow-[0_20px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl">
           <Logo size={72} className="mx-auto" />
-          <h2 className="mt-4 font-display text-xl font-bold text-mist-100">{t('onboarding.waitingTitle')}</h2>
-          <p className="mt-2 text-sm leading-relaxed text-mist-500">{t('onboarding.waitingDesc')}</p>
+          <h2 className="mt-4 font-display text-xl font-bold text-mist-100">
+            {t('onboarding.waitingTitle')}
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-mist-500">
+            {t('onboarding.waitingDesc')}
+          </p>
         </div>
       </div>
     )
@@ -116,7 +120,9 @@ export default function Onboarding({ onComplete, blocked = false }: OnboardingPr
           type="button"
           onClick={() => setLanguage('es')}
           className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
-            language === 'es' ? 'bg-gradient-to-r from-nebula-500 to-iris-600 text-white' : 'text-mist-500 hover:text-mist-200'
+            language === 'es'
+              ? 'bg-gradient-to-r from-nebula-500 to-iris-600 text-white'
+              : 'text-mist-500 hover:text-mist-200'
           }`}
         >
           ES
@@ -125,7 +131,9 @@ export default function Onboarding({ onComplete, blocked = false }: OnboardingPr
           type="button"
           onClick={() => setLanguage('en')}
           className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
-            language === 'en' ? 'bg-gradient-to-r from-nebula-500 to-iris-600 text-white' : 'text-mist-500 hover:text-mist-200'
+            language === 'en'
+              ? 'bg-gradient-to-r from-nebula-500 to-iris-600 text-white'
+              : 'text-mist-500 hover:text-mist-200'
           }`}
         >
           EN
@@ -156,7 +164,9 @@ export default function Onboarding({ onComplete, blocked = false }: OnboardingPr
             </span>
           </h1>
 
-          <p className="max-w-md text-lg leading-relaxed text-mist-400">{t('onboarding.heroDesc')}</p>
+          <p className="max-w-md text-lg leading-relaxed text-mist-400">
+            {t('onboarding.heroDesc')}
+          </p>
 
           <ul className="space-y-4">
             {FEATURES.map((f) => (
@@ -216,7 +226,11 @@ export default function Onboarding({ onComplete, blocked = false }: OnboardingPr
                   disabled={!urlValid || loading}
                   className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-mist-100 transition-all hover:border-nebula-400/50 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {loading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                  {loading ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Sparkles size={16} />
+                  )}
                   {loading ? t('onboarding.discovering') : t('onboarding.discover')}
                 </button>
               </div>
@@ -272,7 +286,10 @@ export default function Onboarding({ onComplete, blocked = false }: OnboardingPr
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Rocket size={16} />}
                 {saving ? t('onboarding.starting') : t('onboarding.start')}
                 {!saving && (
-                  <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
+                  <ArrowRight
+                    size={16}
+                    className="transition-transform group-hover:translate-x-0.5"
+                  />
                 )}
               </button>
             </div>

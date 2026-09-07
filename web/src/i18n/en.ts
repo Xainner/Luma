@@ -18,12 +18,12 @@ export const en: Record<I18nKey, string> = {
   'onboarding.featureStreaming': 'Real-time streaming',
   'onboarding.featureStreamingDesc': 'Token-by-token answers with animation',
   'onboarding.featureImages': 'Attach images & videos',
-  'onboarding.featureImagesDesc': 'Drag, paste or upload screenshots, photos and videos (their frames are sent to the model)',
+  'onboarding.featureImagesDesc':
+    'Drag, paste or upload screenshots, photos and videos (their frames are sent to the model)',
   'onboarding.featureSettings': 'Fully configurable',
   'onboarding.featureSettingsDesc': 'Model, temperature, prompt and more in Settings',
   'onboarding.connect': 'Connect your server',
-  'onboarding.subtitle':
-    'Set the OpenAI-compatible base URL and discover the available models.',
+  'onboarding.subtitle': 'Set the OpenAI-compatible base URL and discover the available models.',
   'onboarding.urlLabel': 'Base URL',
   'onboarding.urlPlaceholder': 'http://host:port/v1',
   'onboarding.discover': 'Discover models',
@@ -79,7 +79,8 @@ export const en: Record<I18nKey, string> = {
   'composer.removeVideo': 'Remove video {name}',
   'composer.send': 'Send message',
   'composer.stop': 'Stop generating',
-  'composer.hint': 'Enter to send · Shift+Enter for a new line · drag or paste images or videos (max 200 MB)',
+  'composer.hint':
+    'Enter to send · Shift+Enter for a new line · drag or paste images or videos (max 200 MB)',
 
   'bubble.copy': 'Copy response',
 
@@ -90,8 +91,7 @@ export const en: Record<I18nKey, string> = {
   'settings.title': 'Settings',
   'settings.readOnlyNote':
     'Configuration is in global mode: managed by the administrator. You can only use the chat.',
-  'settings.userModeNote':
-    'Per-user mode: your settings are private and only affect your account.',
+  'settings.userModeNote': 'Per-user mode: your settings are private and only affect your account.',
   'settings.globalConfig': 'Global configuration',
   'settings.connectionTitle': 'Connection & model',
   'settings.urlLabel': 'Base URL',
@@ -108,7 +108,8 @@ export const en: Record<I18nKey, string> = {
   'settings.thinking': 'Reasoning (thinking)',
   'settings.thinkingDesc':
     'Default reasoning level. It can be changed per model from the composer; here you can pin exceptions.',
-  'settings.thinkingNote': 'Only applies to thinking-capable models (Qwen). Other models ignore it.',
+  'settings.thinkingNote':
+    'Only applies to thinking-capable models (Qwen). Other models ignore it.',
   'settings.thinkingDefault': 'Default level',
   'settings.thinkingOverrides': 'Per-model exceptions',
   'settings.thinkingNoOverrides': 'No exceptions: every model uses the default level.',
@@ -119,6 +120,9 @@ export const en: Record<I18nKey, string> = {
   'thinking.medium': '🟡 Medium',
   'thinking.high': '🔴 High',
   'thinking.viewThought': 'View thought',
+  'toast.saveFailed': 'Could not save.',
+  'toast.chatFailed': 'Could not create the chat.',
+  'toast.deleteFailed': 'Could not delete.',
   'settings.language': 'Language',
   'settings.systemPrompt': 'System prompt',
   'settings.systemPromptAdminDesc':
@@ -174,8 +178,7 @@ export const en: Record<I18nKey, string> = {
   'profiles.color': 'Profile color',
   'profiles.master': 'Master prompt',
   'profiles.masterHint': '(added after the system prompt)',
-  'profiles.masterPlaceholder':
-    'Extra directives applied to every conversation with this profile…',
+  'profiles.masterPlaceholder': 'Extra directives applied to every conversation with this profile…',
   'profiles.active': 'Active',
   'profiles.use': 'Use',
   'profiles.save': 'Save',

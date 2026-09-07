@@ -34,9 +34,7 @@ function downscale(dataUrl: string, maxDim: number): Promise<string> {
 
 export async function prepareImage(file: File): Promise<ImageAttachment> {
   if (file.size > MEDIA_LIMITS.maxImageMB * 1024 * 1024) {
-    throw new Error(
-      `“${file.name}” supera el límite de ${MEDIA_LIMITS.maxImageMB} MB por imagen.`,
-    )
+    throw new Error(`“${file.name}” supera el límite de ${MEDIA_LIMITS.maxImageMB} MB por imagen.`)
   }
   const dataUrl = await fileToDataUrl(file)
   const optimized = await downscale(dataUrl, MAX_DIM)

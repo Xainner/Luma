@@ -14,10 +14,7 @@ const cfg = (over: Partial<AppConfig> = {}): AppConfig => ({ ...defaultConfig, .
 
 describe('toApiMessages', () => {
   it('texto simple sin system', () => {
-    const out = toApiMessages(
-      [{ id: '1', role: 'user', content: 'hola', createdAt: 1 }],
-      '',
-    )
+    const out = toApiMessages([{ id: '1', role: 'user', content: 'hola', createdAt: 1 }], '')
     assert.deepEqual(out, [{ role: 'user', content: 'hola' }])
   })
 
@@ -70,7 +67,7 @@ describe('thinking', () => {
   })
 
   it('resolveEffort: override por modelo gana al global', () => {
-    const c = cfg({ thinkingEffort: 'low', modelThinking: { 'm1': 'high' } })
+    const c = cfg({ thinkingEffort: 'low', modelThinking: { m1: 'high' } })
     assert.equal(resolveEffort(c, 'm1'), 'high')
     assert.equal(resolveEffort(c, 'otro'), 'low')
   })

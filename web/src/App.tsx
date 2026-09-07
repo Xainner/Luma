@@ -45,6 +45,8 @@ import SettingsView from './components/SettingsView'
 import Sidebar from './components/Sidebar'
 import { I18nProvider, translate } from './i18n'
 import { exportChatJson, exportChatMarkdown, exportChatPdf } from './lib/export'
+import { useUIStore } from './stores/ui'
+import { Toaster, toast } from 'sonner'
 import { uuid } from './lib/uuid'
 
 function deriveTitle(text: string): string {
@@ -62,11 +64,14 @@ export default function App() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [activeChat, setActiveChat] = useState<Chat | null>(null)
   const [isStreaming, setIsStreaming] = useState(false)
-  const [view, setView] = useState<'chat' | 'settings'>('chat')
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const view = useUIStore((s) => s.view)
+  const goChat = useUIStore((s) => s.goChat)
+  const goSettings = useUIStore((s) => s.goSettings)
+  const sidebarOpen = useUIStore((s) => s.sidebarOpen)
+  const setSidebarOpen = useUIStore((s) => s.setSidebarOpen)
+  const paletteOpen = useUIStore((s) => s.paletteOpen)
   const [models, setModels] = useState<string[]>([])
   const [profiles, setProfiles] = useState<Profile[]>([])
-  const [paletteOpen, setPaletteOpen] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const streamingRef = useRef(false)
 
@@ -112,7 +117,6 @@ export default function App() {
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function handleLogin(email: string, password: string) {
@@ -126,10 +130,9 @@ export default function App() {
     setChats(chatsList)
     setProfiles(profilesList)
     await syncModels(cfgResp.config)
-    setView('chat')
     setActiveId(null)
     setActiveChat(null)
-    setSidebarOpen(false)
+    goChat()
   }
 
   async function handleLogout() {
@@ -152,7 +155,7 @@ export default function App() {
     setConfig(resp.config)
     setConfigMeta({ scope: resp.scope, isAdmin: resp.isAdmin })
     setApiKeySet(resp.apiKeySet)
-    setView('chat')
+    goChat()
     const [chatsList, profilesList] = await Promise.all([listChats(), listProfiles()])
     setChats(chatsList)
     setProfiles(profilesList)
@@ -160,10 +163,15 @@ export default function App() {
   }
 
   async function handleSaveSettings(cfg: AppConfig) {
-    const resp = await saveConfig(cfg)
-    setConfig(resp.config)
-    setConfigMeta({ scope: resp.scope, isAdmin: resp.isAdmin })
-    setApiKeySet(resp.apiKeySet)
+    try {
+      const resp = await saveConfig(cfg)
+      setConfig(resp.config)
+      setConfigMeta({ scope: resp.scope, isAdmin: resp.isAdmin })
+      setApiKeySet(resp.apiKeySet)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : translate(lang, 'toast.saveFailed'))
+      throw err
+    }
   }
 
   async function handleSetScope(scope: ConfigMeta['scope']) {
@@ -241,8 +249,7 @@ export default function App() {
   }
 
   async function handleSelectChat(id: string) {
-    setSidebarOpen(false)
-    setView('chat')
+    goChat()
     const chat = await getChat(id)
     setActiveId(id)
     setActiveChat(chat)
@@ -250,14 +257,18 @@ export default function App() {
 
   function handleNewChat() {
     if (streamingRef.current) return
-    setSidebarOpen(false)
-    setView('chat')
+    goChat()
     setActiveId(null)
     setActiveChat(null)
   }
 
   async function handleDeleteChat(id: string) {
-    await deleteChat(id)
+    try {
+      await deleteChat(id)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : translate(lang, 'toast.deleteFailed'))
+      return
+    }
     if (activeId === id) {
       setActiveId(null)
       setActiveChat(null)
@@ -266,7 +277,12 @@ export default function App() {
   }
 
   async function handleWipeData() {
-    await wipeData()
+    try {
+      await wipeData()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : translate(lang, 'toast.deleteFailed'))
+      return
+    }
     setChats([])
     setActiveId(null)
     setActiveChat(null)
@@ -389,7 +405,12 @@ export default function App() {
     } catch {
       /* sin título automático */
     }
-    title = title.trim().replace(/^["'“¿?]*/, '').replace(/["'”…]+$/, '').split('\n')[0].trim()
+    title = title
+      .trim()
+      .replace(/^["'“¿?]*/, '')
+      .replace(/["'”…]+$/, '')
+      .split('\n')[0]
+      .trim()
     if (!title) return
     const short = title.slice(0, 60)
     const next = { ...chat, title: short, updatedAt: Date.now() }
@@ -398,10 +419,14 @@ export default function App() {
     void reloadChats()
   }
 
-  async function handleSend(text: string, images: ImageAttachment[], videos: VideoAttachment[]): Promise<boolean> {
+  async function handleSend(
+    text: string,
+    images: ImageAttachment[],
+    videos: VideoAttachment[],
+  ): Promise<boolean> {
     if (isStreaming || streamingRef.current || !config) return false
     if (!config.model) {
-      setView('settings')
+      goSettings()
       return false
     }
 
@@ -412,6 +437,7 @@ export default function App() {
         setActiveId(chat.id)
       }
     } catch {
+      toast.error(translate(config.language, 'toast.chatFailed'))
       return false
     }
 
@@ -470,22 +496,25 @@ export default function App() {
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       const mod = e.ctrlKey || e.metaKey
+      const ui = useUIStore.getState()
       if (mod && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault()
-        setPaletteOpen((p) => !p)
+        ui.togglePalette()
       } else if (mod && (e.key === 'n' || e.key === 'N')) {
         e.preventDefault()
         handleNewChat()
       } else if (e.key === 'Escape') {
-        setPaletteOpen((p) => {
-          if (p) return false
-          handleStop()
-          return p
-        })
-      } else if (e.key === '/' && !paletteOpen) {
+        if (ui.paletteOpen) ui.setPaletteOpen(false)
+        else handleStop()
+      } else if (e.key === '/' && !ui.paletteOpen) {
         const target = e.target as HTMLElement | null
         const tag = target?.tagName
-        if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT' && !target?.isContentEditable) {
+        if (
+          tag !== 'INPUT' &&
+          tag !== 'TEXTAREA' &&
+          tag !== 'SELECT' &&
+          !target?.isContentEditable
+        ) {
           e.preventDefault()
           window.dispatchEvent(new CustomEvent('luma:focus-composer'))
         }
@@ -496,7 +525,12 @@ export default function App() {
   })
 
   const lang = config?.language ?? 'es'
-  const provider = (node: React.ReactNode) => <I18nProvider lang={lang}>{node}</I18nProvider>
+  const provider = (node: React.ReactNode) => (
+    <I18nProvider lang={lang}>
+      {node}
+      <Toaster theme="dark" position="bottom-center" toastOptions={{ duration: 3500 }} />
+    </I18nProvider>
+  )
 
   const paletteItems: PaletteItem[] = [
     {
@@ -510,13 +544,28 @@ export default function App() {
       key: 'settings',
       label: translate(lang, 'sidebar.settings'),
       icon: Settings2,
-      onSelect: () => setView('settings'),
+      onSelect: () => goSettings(),
     },
     ...(activeChat
       ? [
-          { key: 'export-md', label: `${translate(lang, 'export.menu')} (MD)`, icon: FileDown, onSelect: () => exportChatMarkdown(activeChat) },
-          { key: 'export-json', label: `${translate(lang, 'export.menu')} (JSON)`, icon: FileDown, onSelect: () => exportChatJson(activeChat) },
-          { key: 'export-pdf', label: `${translate(lang, 'export.menu')} (PDF)`, icon: FileDown, onSelect: () => exportChatPdf(activeChat) },
+          {
+            key: 'export-md',
+            label: `${translate(lang, 'export.menu')} (MD)`,
+            icon: FileDown,
+            onSelect: () => exportChatMarkdown(activeChat),
+          },
+          {
+            key: 'export-json',
+            label: `${translate(lang, 'export.menu')} (JSON)`,
+            icon: FileDown,
+            onSelect: () => exportChatJson(activeChat),
+          },
+          {
+            key: 'export-pdf',
+            label: `${translate(lang, 'export.menu')} (PDF)`,
+            icon: FileDown,
+            onSelect: () => exportChatPdf(activeChat),
+          },
         ]
       : []),
     {
@@ -525,7 +574,12 @@ export default function App() {
       icon: Languages,
       onSelect: () => handleChangeLanguage(lang === 'es' ? 'en' : 'es'),
     },
-    { key: 'logout', label: translate(lang, 'sidebar.logout'), icon: LogOut, onSelect: () => void handleLogout() },
+    {
+      key: 'logout',
+      label: translate(lang, 'sidebar.logout'),
+      icon: LogOut,
+      onSelect: () => void handleLogout(),
+    },
   ]
 
   if (!booted) {
@@ -580,10 +634,7 @@ export default function App() {
         onSelect={(id) => void handleSelectChat(id)}
         onNew={handleNewChat}
         onDelete={(id) => void handleDeleteChat(id)}
-        onOpenSettings={() => {
-          setSidebarOpen(false)
-          setView('settings')
-        }}
+        onOpenSettings={() => goSettings()}
         onLogout={() => void handleLogout()}
         models={models}
         model={config.model}
@@ -618,7 +669,7 @@ export default function App() {
                   meta={configMeta}
                   onDiscover={handleDiscoverModels}
                   onSave={handleSaveSettings}
-                  onBack={() => setView('chat')}
+                  onBack={() => goChat()}
                   onWipeData={handleWipeData}
                   onCreateProfile={handleCreateProfile}
                   onUpdateProfile={handleUpdateProfile}
@@ -657,7 +708,11 @@ export default function App() {
           </AnimatePresence>
         </main>
       </div>
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} items={paletteItems} />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => useUIStore.getState().setPaletteOpen(false)}
+        items={paletteItems}
+      />
     </div>,
   )
 }

@@ -37,12 +37,20 @@ import {
   type Profile,
   type User,
 } from './db.js'
-import type { AppConfig, Chat, ChatMessage, ImageAttachment, VideoAttachment } from './db-shared.js'
+import type { AppConfig, Chat } from './db-shared.js'
 import { buildChatPayload, effortSystemHint, resolveEffort } from './chat-payload.js'
 import { MEDIA_LIMITS } from './media-config.js'
 import { registerUploads } from './uploads.js'
+import { chatBodySchema, configBodySchema, parseOr400 } from './validation.js'
 
-export type { AppConfig, Chat, ChatMessage, ImageAttachment, VideoAttachment } from './db-shared.js'
+export type {
+  AppConfig,
+  Chat,
+  ChatMessage,
+  ImageAttachment,
+  ThoughtEffort,
+  VideoAttachment,
+} from './db-shared.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_DIST = process.env.WEB_DIST
@@ -180,7 +188,8 @@ app.get('/api/config', async (req, reply) => {
 
 app.post('/api/config', async (req, reply) => {
   const user = userOf(req)
-  const body = (req.body ?? {}) as ConfigBody
+  const body = parseOr400(configBodySchema, req.body ?? {}, reply)
+  if (!body) return
   const scope = await getConfigScope()
 
   if (scope === 'user') {
@@ -208,19 +217,16 @@ app.post('/api/config', async (req, reply) => {
 
 /* ---------- Admin: scope, system prompt, users ---------- */
 
-app.put(
-  '/api/admin/scope',
-  async (req, reply) => {
-    const denied = requireAdmin(req, reply)
-    if (denied) return denied
-    const { scope } = (req.body ?? {}) as { scope?: ConfigScope }
-    if (scope !== 'global' && scope !== 'user') {
-      return reply.code(400).send({ error: 'scope inválido.' })
-    }
-    await setConfigScope(scope)
-    return reply.send({ scope })
-  },
-)
+app.put('/api/admin/scope', async (req, reply) => {
+  const denied = requireAdmin(req, reply)
+  if (denied) return denied
+  const { scope } = (req.body ?? {}) as { scope?: ConfigScope }
+  if (scope !== 'global' && scope !== 'user') {
+    return reply.code(400).send({ error: 'scope inválido.' })
+  }
+  await setConfigScope(scope)
+  return reply.send({ scope })
+})
 
 app.put('/api/admin/system-prompt', async (req, reply) => {
   const denied = requireAdmin(req, reply)
@@ -278,19 +284,22 @@ app.put('/api/admin/users/:id', async (req: FastifyRequest<{ Params: { id: strin
   return reply.send({ ok: true })
 })
 
-app.delete('/api/admin/users/:id', async (req: FastifyRequest<{ Params: { id: string } }>, reply) => {
-  const denied = requireAdmin(req, reply)
-  if (denied) return denied
-  const id = sanitizeId(req.params.id)
-  const me = userOf(req)
-  if (id === me.id) return reply.code(400).send({ error: 'No puedes eliminar tu propia cuenta.' })
-  const admins = (await listUsers()).filter((u) => u.role === 'admin')
-  if (admins.length === 1 && admins[0].id === id) {
-    return reply.code(400).send({ error: 'Debe existir al menos un administrador.' })
-  }
-  await deleteUser(id)
-  return reply.send({ ok: true })
-})
+app.delete(
+  '/api/admin/users/:id',
+  async (req: FastifyRequest<{ Params: { id: string } }>, reply) => {
+    const denied = requireAdmin(req, reply)
+    if (denied) return denied
+    const id = sanitizeId(req.params.id)
+    const me = userOf(req)
+    if (id === me.id) return reply.code(400).send({ error: 'No puedes eliminar tu propia cuenta.' })
+    const admins = (await listUsers()).filter((u) => u.role === 'admin')
+    if (admins.length === 1 && admins[0].id === id) {
+      return reply.code(400).send({ error: 'Debe existir al menos un administrador.' })
+    }
+    await deleteUser(id)
+    return reply.send({ ok: true })
+  },
+)
 
 /* ---------- Model discovery ---------- */
 
@@ -334,20 +343,15 @@ function composeSystemPrompt(config: AppConfig, profile: Profile | null): string
 
 /* ---------- Chat completions (SSE streaming proxy) ---------- */
 
-interface ChatBody {
-  messages: ChatMessage[]
-  model?: string
-  temperature?: number
-  maxTokens?: number
-}
-
-app.post('/api/chat', async (req: FastifyRequest<{ Body: ChatBody }>, reply: FastifyReply) => {
+app.post('/api/chat', async (req, reply) => {
   const user = userOf(req)
   const effective = await loadEffectiveConfig(user)
   const baseUrl = baseUrlOf(effective)
   if (!baseUrl) return reply.code(400).send({ error: 'No hay una URL base configurada.' })
 
-  const { messages, model, temperature, maxTokens } = req.body ?? {}
+  const parsed = parseOr400(chatBodySchema, req.body ?? {}, reply)
+  if (!parsed) return
+  const { messages, model, temperature, maxTokens } = parsed
   const useModel = model || effective.model
   const effort = resolveEffort(effective, useModel)
   const profile = effective.profileId ? await getProfile(effective.profileId) : null
@@ -355,26 +359,26 @@ app.post('/api/chat', async (req: FastifyRequest<{ Body: ChatBody }>, reply: Fas
   const baseSystem = composeSystemPrompt(effective, profile)
   const systemPrompt = hint ? `${baseSystem}\n\n${hint}` : baseSystem
 
-  const { payload } = buildChatPayload(messages ?? [], systemPrompt, {
+  const { payload } = buildChatPayload(messages, systemPrompt, {
     model: useModel,
     temperature: temperature ?? effective.temperature,
     maxTokens: maxTokens ?? effective.maxTokens,
     effort,
   })
 
-    const upstreamController = new AbortController()
-    let upstream: Response
-    try {
-      upstream = await fetchFollow(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeaders(effective.apiKey),
-        },
-        body: JSON.stringify(payload),
-        signal: upstreamController.signal,
-      })
-    } catch (err) {
+  const upstreamController = new AbortController()
+  let upstream: Response
+  try {
+    upstream = await fetchFollow(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders(effective.apiKey),
+      },
+      body: JSON.stringify(payload),
+      signal: upstreamController.signal,
+    })
+  } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     return reply.code(502).send({ error: `No se pudo conectar: ${message}` })
   }
@@ -438,16 +442,19 @@ app.post('/api/profiles', async (req, reply) => {
   return reply.send({ profile })
 })
 
-app.put('/api/profiles/:id', async (req: FastifyRequest<{ Params: { id: string }; Body: Partial<Profile> }>, reply) => {
-  const denied = requireAdmin(req, reply)
-  if (denied) return denied
-  const id = sanitizeId(req.params.id)
-  const existing = await getProfile(id)
-  if (!existing) return reply.code(404).send({ error: 'Perfil no encontrado.' })
-  const profile: Profile = { ...existing, ...(req.body ?? {}) }
-  await saveProfile(profile)
-  return reply.send({ profile })
-})
+app.put(
+  '/api/profiles/:id',
+  async (req: FastifyRequest<{ Params: { id: string }; Body: Partial<Profile> }>, reply) => {
+    const denied = requireAdmin(req, reply)
+    if (denied) return denied
+    const id = sanitizeId(req.params.id)
+    const existing = await getProfile(id)
+    if (!existing) return reply.code(404).send({ error: 'Perfil no encontrado.' })
+    const profile: Profile = { ...existing, ...(req.body ?? {}) }
+    await saveProfile(profile)
+    return reply.send({ profile })
+  },
+)
 
 app.delete('/api/profiles/:id', async (req: FastifyRequest<{ Params: { id: string } }>, reply) => {
   const denied = requireAdmin(req, reply)
@@ -461,7 +468,9 @@ app.delete('/api/profiles/:id', async (req: FastifyRequest<{ Params: { id: strin
 
 app.get('/api/chats', async (req, reply) => {
   const q = (req.query as { q?: string } | undefined)?.q
-  return reply.send({ chats: await listChats(userOf(req).id, typeof q === 'string' ? q : undefined) })
+  return reply.send({
+    chats: await listChats(userOf(req).id, typeof q === 'string' ? q : undefined),
+  })
 })
 
 app.post('/api/chats', async (req, reply) => {
@@ -483,14 +492,17 @@ app.get('/api/chats/:id', async (req: FastifyRequest<{ Params: { id: string } }>
   return reply.send({ chat })
 })
 
-app.put('/api/chats/:id', async (req: FastifyRequest<{ Params: { id: string }; Body: Chat }>, reply) => {
-  const id = sanitizeId(req.params.id)
-  const existing = await getChat(id, userOf(req).id)
-  if (!existing) return reply.code(404).send({ error: 'Chat no encontrado.' })
-  const chat = { ...existing, ...(req.body ?? {}), id, updatedAt: Date.now() }
-  await saveChat(chat, userOf(req).id)
-  return reply.send({ chat: { id, title: chat.title, updatedAt: chat.updatedAt } })
-})
+app.put(
+  '/api/chats/:id',
+  async (req: FastifyRequest<{ Params: { id: string }; Body: Chat }>, reply) => {
+    const id = sanitizeId(req.params.id)
+    const existing = await getChat(id, userOf(req).id)
+    if (!existing) return reply.code(404).send({ error: 'Chat no encontrado.' })
+    const chat = { ...existing, ...(req.body ?? {}), id, updatedAt: Date.now() }
+    await saveChat(chat, userOf(req).id)
+    return reply.send({ chat: { id, title: chat.title, updatedAt: chat.updatedAt } })
+  },
+)
 
 app.delete('/api/chats/:id', async (req: FastifyRequest<{ Params: { id: string } }>, reply) => {
   const id = sanitizeId(req.params.id)

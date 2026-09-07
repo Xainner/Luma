@@ -76,54 +76,61 @@ export default function MessageBubble({
     return (
       <div className="group flex justify-end">
         <div className="max-w-[85%] sm:max-w-[75%]">
-            {message.images && message.images.length > 0 && (
-              <div className={`mb-1.5 grid gap-1.5 ${message.images.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                {message.images.map((img) => (
-                  <img
-                    key={img.id}
-                    src={img.dataUrl}
-                    alt={img.name}
-                    className="w-full rounded-2xl border border-white/10 object-cover shadow-lg"
+          {message.images && message.images.length > 0 && (
+            <div
+              className={`mb-1.5 grid gap-1.5 ${message.images.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}
+            >
+              {message.images.map((img) => (
+                <img
+                  key={img.id}
+                  src={img.dataUrl}
+                  alt={img.name}
+                  className="w-full rounded-2xl border border-white/10 object-cover shadow-lg"
+                  style={{ maxHeight: 280 }}
+                />
+              ))}
+            </div>
+          )}
+          {message.videos && message.videos.length > 0 && (
+            <div
+              className={`mb-1.5 grid gap-1.5 ${message.videos.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}
+            >
+              {message.videos.map((vid) => {
+                const src =
+                  vid.previewUrl ??
+                  (vid.uploadId ? uploadUrl(vid.uploadId) : undefined) ??
+                  vid.dataUrl
+                return src ? (
+                  <video
+                    key={vid.id}
+                    src={src}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className="w-full rounded-2xl border border-white/10 bg-black shadow-lg"
                     style={{ maxHeight: 280 }}
                   />
-                ))}
-              </div>
-            )}
-            {message.videos && message.videos.length > 0 && (
-              <div className={`mb-1.5 grid gap-1.5 ${message.videos.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                {message.videos.map((vid) => {
-                  const src = vid.previewUrl ?? (vid.uploadId ? uploadUrl(vid.uploadId) : undefined) ?? vid.dataUrl
-                  return src ? (
-                    <video
-                      key={vid.id}
-                      src={src}
-                      controls
-                      playsInline
-                      preload="metadata"
-                      className="w-full rounded-2xl border border-white/10 bg-black shadow-lg"
-                      style={{ maxHeight: 280 }}
-                    />
-                  ) : (
-                    <div
-                      key={vid.id}
-                      className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-black shadow-lg"
-                      style={{ maxHeight: 280 }}
-                    >
-                      {vid.thumb && (
-                        <img src={vid.thumb} alt={vid.name} className="w-full object-cover" />
-                      )}
-                      <span className="absolute bottom-2 left-2 rounded-lg bg-black/70 px-2 py-0.5 text-[11px] font-medium text-white/90">
-                        🎬 {vid.name}
-                        {typeof vid.duration === 'number' && vid.duration > 0
-                          ? ` · ${Math.round(vid.duration)}s`
-                          : ''}
-                        {vid.frames?.length ? ` · ${vid.frames.length} frames al modelo` : ''}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+                ) : (
+                  <div
+                    key={vid.id}
+                    className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-black shadow-lg"
+                    style={{ maxHeight: 280 }}
+                  >
+                    {vid.thumb && (
+                      <img src={vid.thumb} alt={vid.name} className="w-full object-cover" />
+                    )}
+                    <span className="absolute bottom-2 left-2 rounded-lg bg-black/70 px-2 py-0.5 text-[11px] font-medium text-white/90">
+                      🎬 {vid.name}
+                      {typeof vid.duration === 'number' && vid.duration > 0
+                        ? ` · ${Math.round(vid.duration)}s`
+                        : ''}
+                      {vid.frames?.length ? ` · ${vid.frames.length} frames al modelo` : ''}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
           <div className="rounded-2xl rounded-br-md bg-gradient-to-br from-nebula-500/80 via-iris-500/80 to-flare-500/70 px-4 py-2.5 text-[15px] leading-relaxed text-white shadow-[0_8px_24px_rgba(124,58,237,0.35)]">
             <p className="whitespace-pre-wrap">{message.content}</p>
           </div>
@@ -159,7 +166,8 @@ export default function MessageBubble({
         {message.thinking && (
           <details className="mb-2 rounded-xl border border-white/8 bg-white/[0.03] px-3 py-1.5 text-[13px]">
             <summary className="cursor-pointer select-none text-mist-500 transition-colors hover:text-mist-300">
-              💭 {t('thinking.viewThought')}{isStreaming && isLast ? '…' : ''}
+              💭 {t('thinking.viewThought')}
+              {isStreaming && isLast ? '…' : ''}
             </summary>
             <pre className="mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap font-sans leading-relaxed text-mist-400">
               {message.thinking}
@@ -168,7 +176,10 @@ export default function MessageBubble({
         )}
         <Markdown>{message.content}</Markdown>
         {isStreaming && isLast && (
-          <span aria-hidden="true" className="ml-0.5 inline-block size-[9px] animate-caret rounded-[1px] bg-nebula-400 align-middle" />
+          <span
+            aria-hidden="true"
+            className="ml-0.5 inline-block size-[9px] animate-caret rounded-[1px] bg-nebula-400 align-middle"
+          />
         )}
         <div className="mt-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
           {isLast && !isStreaming && message.content && (

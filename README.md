@@ -52,14 +52,14 @@ docker compose up -d --build
 
 La app queda en **`http://localhost:17015`**.
 
-En el primer arranque se muestra un *onboarding*: pega la URL base de tu servidor (p. ej. `http://192.168.0.3:8021/v1`), opcionalmente tu API key y pulsa **Descubrir modelos** para seleccionar el tuyo.
+En el primer arranque se muestra un _onboarding_: pega la URL base de tu servidor (p. ej. `http://192.168.0.3:8021/v1`), opcionalmente tu API key y pulsa **Descubrir modelos** para seleccionar el tuyo.
 
 ## 🗄️ Base de datos
 
 La base de datos se elige con `DATABASE_TYPE` en el `.env`:
 
-- **`sqlite`** *(por defecto)* — sin servidor externo. El archivo vive en `DATABASE_PATH` (`./data/luma.db` por defecto; en Docker se monta como volumen en `/app/data`).
-- **`postgres`** *(opcional)* — requiere el servicio `db` y una `DATABASE_URL`.
+- **`sqlite`** _(por defecto)_ — sin servidor externo. El archivo vive en `DATABASE_PATH` (`./data/luma.db` por defecto; en Docker se monta como volumen en `/app/data`).
+- **`postgres`** _(opcional)_ — requiere el servicio `db` y una `DATABASE_URL`.
 
 Con SQLite solo necesitas Docker Compose para la app:
 
@@ -79,7 +79,7 @@ docker compose --profile postgres up -d --build
 
 ## 👤 Perfiles
 
-Cada **perfil** aporta un *master prompt* que se añade al *system prompt* de Ajustes en cada conversación:
+Cada **perfil** aporta un _master prompt_ que se añade al _system prompt_ de Ajustes en cada conversación:
 
 ```
 system prompt (Ajustes)  +  "\n\n"  +  master prompt (perfil activo)
@@ -100,31 +100,31 @@ Luma/
 └── docker-compose.yml  App (+ Postgres opcional con perfil `postgres`), puerto 17015
 ```
 
-| Capa        | Tecnología                                    |
-| ----------- | --------------------------------------------- |
-| Frontend    | React 19, Vite 6, TypeScript, Tailwind 4, Motion |
-| Backend     | Fastify 5, Node 22, streaming SSE             |
-| Datos       | SQLite (default) o PostgreSQL 16 (`app_config`, `chats`) |
-| Infra       | Docker Compose, `restart: unless-stopped`     |
+| Capa     | Tecnología                                               |
+| -------- | -------------------------------------------------------- |
+| Frontend | React 19, Vite 6, TypeScript, Tailwind 4, Motion         |
+| Backend  | Fastify 5, Node 22, streaming SSE                        |
+| Datos    | SQLite (default) o PostgreSQL 16 (`app_config`, `chats`) |
+| Infra    | Docker Compose, `restart: unless-stopped`                |
 
 ### Endpoints
 
-| Método | Ruta                 | Descripción                                |
-| ------ | -------------------- | ------------------------------------------ |
-| GET    | `/api/config`        | Configuración actual (key enmascarada)     |
-| POST   | `/api/config`        | Guardar configuración                      |
-| GET    | `/api/models`        | Descubrir modelos (usa la config o headers `x-luma-base`) |
-| POST   | `/api/chat`          | Completar chat con **streaming SSE**       |
-| GET    | `/api/chats`         | Listar conversaciones                      |
-| POST   | `/api/chats`         | Crear conversación                         |
-| GET    | `/api/chats/:id`     | Ver conversación completa                  |
-| PUT    | `/api/chats/:id`     | Actualizar conversación                    |
-| DELETE | `/api/chats/:id`     | Eliminar conversación                      |
-| DELETE | `/api/data`          | Borrar todos los chats                     |
-| GET    | `/api/profiles`      | Listar perfiles                            |
-| POST   | `/api/profiles`      | Crear perfil                               |
-| PUT    | `/api/profiles/:id`  | Actualizar perfil                          |
-| DELETE | `/api/profiles/:id`  | Eliminar perfil                            |
+| Método | Ruta                | Descripción                                               |
+| ------ | ------------------- | --------------------------------------------------------- |
+| GET    | `/api/config`       | Configuración actual (key enmascarada)                    |
+| POST   | `/api/config`       | Guardar configuración                                     |
+| GET    | `/api/models`       | Descubrir modelos (usa la config o headers `x-luma-base`) |
+| POST   | `/api/chat`         | Completar chat con **streaming SSE**                      |
+| GET    | `/api/chats`        | Listar conversaciones                                     |
+| POST   | `/api/chats`        | Crear conversación                                        |
+| GET    | `/api/chats/:id`    | Ver conversación completa                                 |
+| PUT    | `/api/chats/:id`    | Actualizar conversación                                   |
+| DELETE | `/api/chats/:id`    | Eliminar conversación                                     |
+| DELETE | `/api/data`         | Borrar todos los chats                                    |
+| GET    | `/api/profiles`     | Listar perfiles                                           |
+| POST   | `/api/profiles`     | Crear perfil                                              |
+| PUT    | `/api/profiles/:id` | Actualizar perfil                                         |
+| DELETE | `/api/profiles/:id` | Eliminar perfil                                           |
 
 ## 🛠️ Desarrollo local
 

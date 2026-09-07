@@ -58,7 +58,9 @@ export default function Login({ onLogin }: LoginProps) {
       >
         <motion.div variants={item} className="flex flex-col items-center text-center">
           <Logo size={220} radius="rounded-3xl" />
-          <h1 className="mt-4 font-display text-3xl font-bold tracking-tight text-mist-100">Luma</h1>
+          <h1 className="mt-4 font-display text-3xl font-bold tracking-tight text-mist-100">
+            Luma
+          </h1>
           <p className="mt-1 text-sm text-mist-500">{t('login.title')}</p>
         </motion.div>
 
@@ -69,9 +71,14 @@ export default function Login({ onLogin }: LoginProps) {
           >
             <div className="space-y-4">
               <div>
-                <label htmlFor="lg-email" className={labelClass}>{t('login.email')}</label>
+                <label htmlFor="lg-email" className={labelClass}>
+                  {t('login.email')}
+                </label>
                 <div className="relative">
-                  <Mail size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mist-600" />
+                  <Mail
+                    size={16}
+                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mist-600"
+                  />
                   <input
                     id="lg-email"
                     type="email"
@@ -85,9 +92,14 @@ export default function Login({ onLogin }: LoginProps) {
                 </div>
               </div>
               <div>
-                <label htmlFor="lg-pass" className={labelClass}>{t('login.password')}</label>
+                <label htmlFor="lg-pass" className={labelClass}>
+                  {t('login.password')}
+                </label>
                 <div className="relative">
-                  <Lock size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mist-600" />
+                  <Lock
+                    size={16}
+                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mist-600"
+                  />
                   <input
                     id="lg-pass"
                     type="password"

@@ -47,7 +47,13 @@ function ProfileCard({
     if (saving) return
     setSaving(true)
     try {
-      await onUpdate({ ...profile, name: name.trim() || t('profiles.unnamed'), emoji, color, masterPrompt })
+      await onUpdate({
+        ...profile,
+        name: name.trim() || t('profiles.unnamed'),
+        emoji,
+        color,
+        masterPrompt,
+      })
       setSaved(true)
       setTimeout(() => setSaved(false), 1600)
     } finally {
@@ -65,7 +71,9 @@ function ProfileCard({
   }
 
   return (
-    <div className={`rounded-2xl border p-4 transition-colors ${isActive ? 'border-iris-500/40 bg-iris-500/5' : 'border-white/10 bg-ink-900/70'}`}>
+    <div
+      className={`rounded-2xl border p-4 transition-colors ${isActive ? 'border-iris-500/40 bg-iris-500/5' : 'border-white/10 bg-ink-900/70'}`}
+    >
       <div className="flex items-start gap-3">
         <div
           className="flex size-11 shrink-0 items-center justify-center rounded-xl text-xl"
@@ -170,7 +178,12 @@ export default function ProfilesManager({
     setCreating(true)
     try {
       const color = DEFAULT_COLORS[profiles.length % DEFAULT_COLORS.length]
-      const created = await onCreate({ name: t('profiles.unnamed'), masterPrompt: '', emoji: '✨', color })
+      const created = await onCreate({
+        name: t('profiles.unnamed'),
+        masterPrompt: '',
+        emoji: '✨',
+        color,
+      })
       onSetActive(created.id)
     } finally {
       setCreating(false)

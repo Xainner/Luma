@@ -54,8 +54,12 @@ export default function SettingsView({
   const [model, setModel] = useState(config.model)
   const [temperature, setTemperature] = useState(config.temperature)
   const [maxTokens, setMaxTokens] = useState(config.maxTokens)
-  const [thinkingEffort, setThinkingEffort] = useState<ThoughtEffort>(config.thinkingEffort ?? 'medium')
-  const [modelThinking, setModelThinking] = useState<Record<string, ThoughtEffort>>(config.modelThinking ?? {})
+  const [thinkingEffort, setThinkingEffort] = useState<ThoughtEffort>(
+    config.thinkingEffort ?? 'medium',
+  )
+  const [modelThinking, setModelThinking] = useState<Record<string, ThoughtEffort>>(
+    config.modelThinking ?? {},
+  )
   const [profileId, setProfileId] = useState(config.profileId)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -76,7 +80,18 @@ export default function SettingsView({
       thinkingEffort !== (config.thinkingEffort ?? 'medium') ||
       JSON.stringify(modelThinking) !== JSON.stringify(config.modelThinking ?? {}) ||
       profileId !== config.profileId,
-    [config, baseUrl, apiKey, clearKey, model, temperature, maxTokens, thinkingEffort, modelThinking, profileId],
+    [
+      config,
+      baseUrl,
+      apiKey,
+      clearKey,
+      model,
+      temperature,
+      maxTokens,
+      thinkingEffort,
+      modelThinking,
+      profileId,
+    ],
   )
 
   async function handleDiscover() {
@@ -144,10 +159,14 @@ export default function SettingsView({
         >
           <ArrowLeft size={20} />
         </button>
-        <h1 className="font-display text-base font-bold tracking-tight text-mist-100">{t('settings.title')}</h1>
+        <h1 className="font-display text-base font-bold tracking-tight text-mist-100">
+          {t('settings.title')}
+        </h1>
         <span className="ml-auto flex items-center gap-1.5 text-xs text-mist-500">
           {user.email}
-          <span className={`rounded-lg px-2 py-0.5 font-semibold ${meta.isAdmin ? 'bg-iris-500/15 text-iris-300' : 'bg-white/5 text-mist-400'}`}>
+          <span
+            className={`rounded-lg px-2 py-0.5 font-semibold ${meta.isAdmin ? 'bg-iris-500/15 text-iris-300' : 'bg-white/5 text-mist-400'}`}
+          >
             {meta.isAdmin ? t('settings.badgeAdmin') : t('settings.badgeUser')}
           </span>
         </span>
@@ -176,7 +195,9 @@ export default function SettingsView({
           {/* Conexión + Modelo */}
           <section className="rounded-2xl border border-white/10 bg-ink-900/70 p-5 backdrop-blur-xl">
             <h2 className="mb-4 font-display text-lg font-bold text-mist-100">
-              {meta.isAdmin && meta.scope === 'global' ? t('settings.globalConfig') : t('settings.connectionTitle')}
+              {meta.isAdmin && meta.scope === 'global'
+                ? t('settings.globalConfig')
+                : t('settings.connectionTitle')}
             </h2>
             <div className="space-y-4">
               <div>
@@ -198,7 +219,13 @@ export default function SettingsView({
               </div>
 
               <div>
-                <ApiKeyField id="st-key" value={apiKey} onChange={setApiKey} disabled={readOnly} hasStored={apiKeySet} />
+                <ApiKeyField
+                  id="st-key"
+                  value={apiKey}
+                  onChange={setApiKey}
+                  disabled={readOnly}
+                  hasStored={apiKeySet}
+                />
                 {apiKeySet && !readOnly && (
                   <button
                     type="button"
@@ -241,7 +268,11 @@ export default function SettingsView({
                   disabled={discovering || readOnly}
                   className="inline-flex h-[42px] shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3.5 text-sm font-medium text-mist-200 transition-all hover:border-nebula-400/50 hover:bg-white/10 disabled:opacity-60"
                 >
-                  {discovering ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                  {discovering ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <RefreshCw size={16} />
+                  )}
                   {discovering ? t('settings.discovering') : t('settings.discover')}
                 </button>
               </div>
@@ -277,7 +308,9 @@ export default function SettingsView({
                   <label htmlFor="st-temp" className="text-sm font-medium text-mist-200">
                     {t('settings.temperature')}
                   </label>
-                  <span className="font-mono text-sm text-nebula-300">{temperature.toFixed(1)}</span>
+                  <span className="font-mono text-sm text-nebula-300">
+                    {temperature.toFixed(1)}
+                  </span>
                 </div>
                 <input
                   id="st-temp"
@@ -407,7 +440,9 @@ export default function SettingsView({
               {t('settings.systemPrompt')}
             </h2>
             <p className="mb-3 text-sm text-mist-500">
-              {meta.isAdmin ? t('settings.systemPromptAdminDesc') : t('settings.systemPromptUserDesc')}
+              {meta.isAdmin
+                ? t('settings.systemPromptAdminDesc')
+                : t('settings.systemPromptUserDesc')}
             </p>
             {meta.isAdmin ? (
               <AdminPanel
@@ -449,15 +484,22 @@ export default function SettingsView({
               />
             ) : (
               <ul className="space-y-2">
-                {profiles.length === 0 && <p className="text-sm text-mist-600">{t('settings.noProfiles')}</p>}
+                {profiles.length === 0 && (
+                  <p className="text-sm text-mist-600">{t('settings.noProfiles')}</p>
+                )}
                 {profiles.map((p) => (
-                  <li key={p.id} className="flex items-start gap-3 rounded-xl border border-white/10 bg-ink-850 p-3">
+                  <li
+                    key={p.id}
+                    className="flex items-start gap-3 rounded-xl border border-white/10 bg-ink-850 p-3"
+                  >
                     <span className="text-xl" aria-hidden="true">
                       {p.emoji}
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-mist-100">{p.name}</p>
-                      <p className="text-xs text-mist-500">{p.masterPrompt || t('settings.noMaster')}</p>
+                      <p className="text-xs text-mist-500">
+                        {p.masterPrompt || t('settings.noMaster')}
+                      </p>
                     </div>
                     {profileId === p.id && (
                       <span className="rounded-lg bg-iris-500/15 px-2 py-0.5 text-xs font-semibold text-iris-300">

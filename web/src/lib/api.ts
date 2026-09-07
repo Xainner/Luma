@@ -1,4 +1,13 @@
-import type { AdminUser, AppConfig, Chat, ChatMessage, ChatMeta, ConfigScope, Profile, User } from '../types'
+import type {
+  AdminUser,
+  AppConfig,
+  Chat,
+  ChatMessage,
+  ChatMeta,
+  ConfigScope,
+  Profile,
+  User,
+} from '../types'
 import { stripVideoEphemeral } from './videos'
 
 const TOKEN_KEY = 'luma.token'
@@ -122,7 +131,11 @@ export async function listUsers(): Promise<AdminUser[]> {
   return data.users
 }
 
-export async function createUser(email: string, password: string, role: User['role']): Promise<User> {
+export async function createUser(
+  email: string,
+  password: string,
+  role: User['role'],
+): Promise<User> {
   const data = await request<{ user: User }>('/api/admin/users', {
     method: 'POST',
     body: JSON.stringify({ email, password, role }),
@@ -196,7 +209,9 @@ export async function* streamEvents(req: StreamRequest): AsyncGenerator<StreamEv
     const payload = trimmed.slice(5).trim()
     if (payload === '[DONE]' || !payload) return
     let json: {
-      choices?: Array<{ delta?: { content?: string; reasoning_content?: string; reasoning?: string } }>
+      choices?: Array<{
+        delta?: { content?: string; reasoning_content?: string; reasoning?: string }
+      }>
       error?: string
     }
     try {

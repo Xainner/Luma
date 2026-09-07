@@ -19,7 +19,8 @@ export const es = {
   'onboarding.featureStreaming': 'Streaming en tiempo real',
   'onboarding.featureStreamingDesc': 'Respuestas token a token con animación',
   'onboarding.featureImages': 'Adjunta imágenes y videos',
-  'onboarding.featureImagesDesc': 'Arrastra, pega o sube capturas, fotos y videos (sus frames se envían al modelo)',
+  'onboarding.featureImagesDesc':
+    'Arrastra, pega o sube capturas, fotos y videos (sus frames se envían al modelo)',
   'onboarding.featureSettings': 'Todo configurable',
   'onboarding.featureSettingsDesc': 'Modelo, temperatura, prompt y más en Ajustes',
   'onboarding.connect': 'Conecta tu servidor',
@@ -83,7 +84,8 @@ export const es = {
   'composer.removeVideo': 'Quitar video {name}',
   'composer.send': 'Enviar mensaje',
   'composer.stop': 'Detener generación',
-  'composer.hint': 'Enter para enviar · Shift+Enter para nueva línea · arrastra o pega imágenes o videos (máx 200 MB)',
+  'composer.hint':
+    'Enter para enviar · Shift+Enter para nueva línea · arrastra o pega imágenes o videos (máx 200 MB)',
 
   /* Mensajes */
   'bubble.copy': 'Copiar respuesta',
@@ -97,8 +99,7 @@ export const es = {
   'settings.title': 'Ajustes',
   'settings.readOnlyNote':
     'La configuración está en modo global: la gestiona el administrador. Tú solo puedes usar los chats.',
-  'settings.userModeNote':
-    'Modo por usuario: tus ajustes son privados y solo afectan a tu cuenta.',
+  'settings.userModeNote': 'Modo por usuario: tus ajustes son privados y solo afectan a tu cuenta.',
   'settings.globalConfig': 'Configuración global',
   'settings.connectionTitle': 'Conexión y modelo',
   'settings.urlLabel': 'URL base',
@@ -126,6 +127,9 @@ export const es = {
   'thinking.medium': '🟡 Medio',
   'thinking.high': '🔴 Alto',
   'thinking.viewThought': 'Ver pensamiento',
+  'toast.saveFailed': 'No se pudo guardar.',
+  'toast.chatFailed': 'No se pudo crear el chat.',
+  'toast.deleteFailed': 'No se pudo eliminar.',
   'settings.language': 'Idioma',
   'settings.systemPrompt': 'System prompt',
   'settings.systemPromptAdminDesc':

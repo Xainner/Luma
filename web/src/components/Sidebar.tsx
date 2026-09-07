@@ -63,10 +63,7 @@ export default function Sidebar({
   const [results, setResults] = useState<ChatMeta[] | null>(null)
 
   useEffect(() => {
-    if (!query.trim()) {
-      setResults(null)
-      return
-    }
+    if (!query.trim()) return
     const timer = setTimeout(async () => {
       try {
         setResults(await listChats(query))
@@ -104,7 +101,9 @@ export default function Sidebar({
         <div className="flex items-center justify-between px-4 pt-4 pb-3">
           <div className="flex items-center gap-2.5">
             <Logo size={40} />
-            <span className="font-display text-lg font-bold tracking-tight text-mist-100">Luma</span>
+            <span className="font-display text-lg font-bold tracking-tight text-mist-100">
+              Luma
+            </span>
           </div>
           <button
             type="button"
@@ -122,7 +121,10 @@ export default function Sidebar({
             onClick={onNew}
             className="group inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm font-semibold text-mist-100 transition-all hover:border-nebula-400/50 hover:bg-white/10 active:scale-[0.98]"
           >
-            <Plus size={17} className="text-nebula-300 transition-transform group-hover:rotate-90" />
+            <Plus
+              size={17}
+              className="text-nebula-300 transition-transform group-hover:rotate-90"
+            />
             {t('sidebar.newChat')}
           </button>
         </div>
@@ -130,11 +132,18 @@ export default function Sidebar({
         {/* Chats */}
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
           <div className="relative mb-2">
-            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-mist-600" />
+            <Search
+              size={14}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-mist-600"
+            />
             <input
               type="text"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value
+                setQuery(v)
+                if (!v.trim()) setResults(null)
+              }}
               placeholder={t('sidebar.search')}
               aria-label={t('sidebar.search')}
               className="w-full rounded-xl border border-white/10 bg-ink-850 py-2 pr-8 pl-8 text-sm text-mist-100 placeholder:text-mist-600 transition-colors focus:border-nebula-400/60 focus:outline-none"
@@ -142,7 +151,10 @@ export default function Sidebar({
             {query && (
               <button
                 type="button"
-                onClick={() => setQuery('')}
+                onClick={() => {
+                  setQuery('')
+                  setResults(null)
+                }}
                 aria-label={t('sidebar.closeMenu')}
                 className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-mist-500 hover:text-mist-200"
               >
@@ -200,7 +212,9 @@ export default function Sidebar({
                   </button>
                   <button
                     type="button"
-                    aria-label={t('sidebar.deleteChat', { title: chat.title || t('sidebar.newChat') })}
+                    aria-label={t('sidebar.deleteChat', {
+                      title: chat.title || t('sidebar.newChat'),
+                    })}
                     onClick={() => onDelete(chat.id)}
                     className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded-lg p-1.5 text-mist-600 opacity-0 transition-all hover:bg-red-500/15 hover:text-red-400 focus-visible:opacity-100 group-hover:opacity-100"
                   >

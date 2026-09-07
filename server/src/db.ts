@@ -15,13 +15,13 @@ export type {
 const DATABASE_TYPE = (process.env.DATABASE_TYPE ?? 'sqlite').trim().toLowerCase()
 
 if (DATABASE_TYPE !== 'sqlite' && DATABASE_TYPE !== 'postgres') {
-  throw new Error(`DATABASE_TYPE inválido: "${process.env.DATABASE_TYPE}" (usa "sqlite" o "postgres")`)
+  throw new Error(
+    `DATABASE_TYPE inválido: "${process.env.DATABASE_TYPE}" (usa "sqlite" o "postgres")`,
+  )
 }
 
 const impl =
-  DATABASE_TYPE === 'postgres'
-    ? await import('./db-postgres.js')
-    : await import('./db-sqlite.js')
+  DATABASE_TYPE === 'postgres' ? await import('./db-postgres.js') : await import('./db-sqlite.js')
 
 export const initDb = impl.initDb
 export const getConfigScope = impl.getConfigScope

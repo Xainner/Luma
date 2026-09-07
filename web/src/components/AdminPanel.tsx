@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Check, KeyRound, Loader2, Plus, Shield, Trash2, Users } from 'lucide-react'
 import type { AdminUser, ConfigScope, User } from '../types'
 import { createUser, deleteUser, listUsers, updateUser } from '../lib/api'
@@ -34,7 +34,7 @@ export default function AdminPanel({
   const [resetPwValue, setResetPwValue] = useState('')
   const [confirmDel, setConfirmDel] = useState('')
 
-  async function load() {
+  const load = useCallback(async () => {
     setUsersLoading(true)
     try {
       setUsers(await listUsers())
@@ -43,11 +43,13 @@ export default function AdminPanel({
     } finally {
       setUsersLoading(false)
     }
-  }
+  }, [t])
 
   useEffect(() => {
+    // Carga inicial al montar el panel (fetch de una sola vez, sin suscripción).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load()
-  }, [])
+  }, [load])
 
   async function handleSavePrompt() {
     if (savingPrompt) return
@@ -130,10 +132,18 @@ export default function AdminPanel({
         </h3>
         <p className="mb-4 text-sm text-mist-500">{t('admin.scopeDesc')}</p>
         <div className="flex max-w-sm rounded-xl border border-white/10 bg-ink-850 p-1">
-          <button type="button" className={toggleBtn(scope === 'global')} onClick={() => void onSetScope('global')}>
+          <button
+            type="button"
+            className={toggleBtn(scope === 'global')}
+            onClick={() => void onSetScope('global')}
+          >
             {t('admin.global')}
           </button>
-          <button type="button" className={toggleBtn(scope === 'user')} onClick={() => void onSetScope('user')}>
+          <button
+            type="button"
+            className={toggleBtn(scope === 'user')}
+            onClick={() => void onSetScope('user')}
+          >
             {t('admin.perUser')}
           </button>
         </div>
@@ -141,7 +151,9 @@ export default function AdminPanel({
 
       {/* System prompt */}
       <section className="rounded-2xl border border-white/10 bg-ink-900/70 p-5">
-        <h3 className="mb-1 font-display text-base font-bold text-mist-100">{t('admin.systemPrompt')}</h3>
+        <h3 className="mb-1 font-display text-base font-bold text-mist-100">
+          {t('admin.systemPrompt')}
+        </h3>
         <p className="mb-4 text-sm text-mist-500">{t('admin.systemPromptDesc')}</p>
         <textarea
           rows={4}
@@ -218,7 +230,10 @@ export default function AdminPanel({
 
         <ul className="space-y-2">
           {users.map((u) => (
-            <li key={u.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-ink-850 px-3 py-2.5">
+            <li
+              key={u.id}
+              className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-ink-850 px-3 py-2.5"
+            >
               <span className="min-w-0 flex-1 truncate text-sm text-mist-100">{u.email}</span>
               {u.role === 'admin' ? (
                 <span className="inline-flex items-center gap-1 rounded-lg bg-iris-500/15 px-2 py-0.5 text-xs font-semibold text-iris-300">
@@ -257,7 +272,11 @@ export default function AdminPanel({
                   >
                     {t('admin.ok')}
                   </button>
-                  <button type="button" onClick={() => setResetPwFor('')} className="text-xs text-mist-500 hover:text-mist-200">
+                  <button
+                    type="button"
+                    onClick={() => setResetPwFor('')}
+                    className="text-xs text-mist-500 hover:text-mist-200"
+                  >
                     {t('admin.cancel')}
                   </button>
                 </span>
@@ -279,7 +298,9 @@ export default function AdminPanel({
                 onClick={() => void handleDelete(u.id)}
                 aria-label={t('admin.delete', { email: u.email })}
                 className={`rounded-lg p-1.5 transition-colors ${
-                  confirmDel === u.id ? 'bg-red-500/20 text-red-300' : 'text-mist-500 hover:bg-red-500/15 hover:text-red-400'
+                  confirmDel === u.id
+                    ? 'bg-red-500/20 text-red-300'
+                    : 'text-mist-500 hover:bg-red-500/15 hover:text-red-400'
                 }`}
               >
                 <Trash2 size={14} />

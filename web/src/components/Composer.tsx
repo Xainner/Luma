@@ -163,9 +163,9 @@ export default function Composer({
             exit={{ opacity: 0 }}
             className="pointer-events-none absolute -inset-2 z-20 flex items-center justify-center rounded-2xl border-2 border-dashed border-nebula-400/70 bg-ink-900/90 backdrop-blur-sm"
           >
-              <p className="flex items-center gap-2 font-display font-semibold text-nebula-300">
-                <ImagePlus size={20} /> {t('composer.dropMedia')}
-              </p>
+            <p className="flex items-center gap-2 font-display font-semibold text-nebula-300">
+              <ImagePlus size={20} /> {t('composer.dropMedia')}
+            </p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -235,7 +235,9 @@ export default function Composer({
             value={text}
             rows={1}
             aria-label={t('composer.message')}
-            placeholder={isStreaming ? t('composer.placeholderStreaming') : t('composer.placeholder')}
+            placeholder={
+              isStreaming ? t('composer.placeholderStreaming') : t('composer.placeholder')
+            }
             onChange={(e) => {
               setText(e.target.value)
               autosize()

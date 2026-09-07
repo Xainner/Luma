@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Download, FileJson, FileText, Menu, SquarePen } from 'lucide-react'
 import type { Chat, ImageAttachment, ThoughtEffort, VideoAttachment } from '../types'
@@ -50,7 +50,7 @@ export default function ChatView({
   const [atBottom, setAtBottom] = useState(true)
   const [exportOpen, setExportOpen] = useState(false)
 
-  const messages = chat?.messages ?? []
+  const messages = useMemo(() => chat?.messages ?? [], [chat])
   const lastId = messages.length > 0 ? messages[messages.length - 1].id : null
 
   function handleScroll() {
@@ -159,9 +159,7 @@ export default function ChatView({
                 <h2 className="font-display text-3xl font-bold tracking-tight text-mist-100">
                   {t('chat.emptyTitle')}
                 </h2>
-                <p className="mx-auto mt-2 max-w-md text-sm text-mist-500">
-                  {t('chat.emptyDesc')}
-                </p>
+                <p className="mx-auto mt-2 max-w-md text-sm text-mist-500">{t('chat.emptyDesc')}</p>
               </motion.div>
 
               <motion.div
@@ -171,10 +169,10 @@ export default function ChatView({
                 className="mt-8 grid w-full max-w-xl gap-2 sm:grid-cols-2"
               >
                 {SUGGESTIONS.map((k) => (
-                    <button
-                      key={k}
-                      type="button"
-                      onClick={() => void onSend(t(k), [], [])}
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => void onSend(t(k), [], [])}
                     className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-mist-400 transition-all hover:border-iris-500/40 hover:bg-iris-500/10 hover:text-mist-100 active:scale-[0.98]"
                   >
                     {t(k)}

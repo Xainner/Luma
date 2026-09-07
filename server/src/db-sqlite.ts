@@ -125,8 +125,7 @@ export async function initDb(): Promise<void> {
 
 export async function getConfigScope(): Promise<ConfigScope> {
   const row = getDb().prepare('SELECT config_scope FROM app_config WHERE id = 1').get() as
-    | { config_scope?: string }
-    | undefined
+    { config_scope?: string } | undefined
   return row?.config_scope === 'user' ? 'user' : 'global'
 }
 
@@ -141,8 +140,7 @@ export async function setConfigScope(scope: ConfigScope): Promise<void> {
 
 export async function loadGlobalConfig(): Promise<AppConfig> {
   const row = getDb().prepare('SELECT * FROM app_config WHERE id = 1').get() as
-    | Record<string, unknown>
-    | undefined
+    Record<string, unknown> | undefined
   return row ? { ...defaultConfig, ...rowToConfig(row) } : { ...defaultConfig }
 }
 
@@ -225,33 +223,40 @@ export async function saveUserConfig(userId: string, config: Partial<AppConfig>)
     )
 }
 
-export const loadEffectiveConfig = makeLoadEffectiveConfig({ loadGlobalConfig, getConfigScope, loadUserConfig })
+export const loadEffectiveConfig = makeLoadEffectiveConfig({
+  loadGlobalConfig,
+  getConfigScope,
+  loadUserConfig,
+})
 
 /* ---------- Users / auth ---------- */
 
-export async function createUser(email: string, password: string, role: User['role']): Promise<User> {
+export async function createUser(
+  email: string,
+  password: string,
+  role: User['role'],
+): Promise<User> {
   const id = randomBytes(16).toString('hex')
-  getDb().prepare('INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)').run(
-    id,
-    email,
-    hashPassword(password),
-    role,
-  )
+  getDb()
+    .prepare('INSERT INTO users (id, email, password_hash, role) VALUES (?, ?, ?, ?)')
+    .run(id, email, hashPassword(password), role)
   return { id, email, role }
 }
 
-export async function findUserByEmail(email: string): Promise<(User & { passwordHash: string }) | null> {
+export async function findUserByEmail(
+  email: string,
+): Promise<(User & { passwordHash: string }) | null> {
   const row = getDb()
     .prepare('SELECT id, email, role, password_hash FROM users WHERE email = ?')
-    .get(email) as { id: string; email: string; role: User['role']; password_hash: string } | undefined
+    .get(email) as
+    { id: string; email: string; role: User['role']; password_hash: string } | undefined
   if (!row) return null
   return { id: row.id, email: row.email, role: row.role, passwordHash: row.password_hash }
 }
 
 export async function getUserById(id: string): Promise<User | null> {
   const row = getDb().prepare('SELECT id, email, role FROM users WHERE id = ?').get(id) as
-    | { id: string; email: string; role: User['role'] }
-    | undefined
+    { id: string; email: string; role: User['role'] } | undefined
   return row ? { id: row.id, email: row.email, role: row.role } : null
 }
 
@@ -327,7 +332,14 @@ export async function saveProfile(profile: Profile): Promise<void> {
          color         = excluded.color,
          updated_at    = excluded.updated_at`,
     )
-    .run(profile.id, profile.name, profile.masterPrompt, profile.emoji, profile.color, new Date().toISOString())
+    .run(
+      profile.id,
+      profile.name,
+      profile.masterPrompt,
+      profile.emoji,
+      profile.color,
+      new Date().toISOString(),
+    )
 }
 
 export async function deleteProfile(id: string): Promise<void> {
@@ -340,12 +352,15 @@ export async function listChats(userId: string, q?: string): Promise<ChatMeta[]>
   let sql = 'SELECT id, title, updated_at FROM chats WHERE user_id = ?'
   const params: unknown[] = [userId]
   if (q && q.trim()) {
-    sql += " AND (LOWER(title) LIKE LOWER(?) ESCAPE '\\' OR LOWER(messages) LIKE LOWER(?) ESCAPE '\\')"
+    sql +=
+      " AND (LOWER(title) LIKE LOWER(?) ESCAPE '\\' OR LOWER(messages) LIKE LOWER(?) ESCAPE '\\')"
     const like = `%${escapeLike(q.trim())}%`
     params.push(like, like)
   }
   sql += ' ORDER BY updated_at DESC'
-  const rows = getDb().prepare(sql).all(...params) as Array<{ id: string; title: string; updated_at: string }>
+  const rows = getDb()
+    .prepare(sql)
+    .all(...params) as Array<{ id: string; title: string; updated_at: string }>
   return rows.map((r) => ({
     id: r.id,
     title: r.title,
@@ -355,7 +370,9 @@ export async function listChats(userId: string, q?: string): Promise<ChatMeta[]>
 
 export async function getChat(id: string, userId: string): Promise<Chat | null> {
   const row = getDb()
-    .prepare('SELECT id, title, created_at, updated_at, messages FROM chats WHERE id = ? AND user_id = ?')
+    .prepare(
+      'SELECT id, title, created_at, updated_at, messages FROM chats WHERE id = ? AND user_id = ?',
+    )
     .get(id, userId) as
     | { id: string; title: string; created_at: string; updated_at: string; messages: string }
     | undefined

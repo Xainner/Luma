@@ -1,0 +1,8 @@
+node_modules
+dist
+build
+web/dist
+server/dist
+server/data
+*.map
+package-lock.json

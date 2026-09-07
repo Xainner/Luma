@@ -86,7 +86,8 @@ async function frameDiff(a: string, b: string): Promise<number> {
   let sum = 0
   const n = da.length / 4
   for (let i = 0; i < da.length; i += 4) {
-    sum += Math.abs(da[i] - db[i]) + Math.abs(da[i + 1] - db[i + 1]) + Math.abs(da[i + 2] - db[i + 2])
+    sum +=
+      Math.abs(da[i] - db[i]) + Math.abs(da[i + 1] - db[i + 1]) + Math.abs(da[i + 2] - db[i + 2])
   }
   return sum / (n * 3)
 }

@@ -89,7 +89,8 @@ export async function registerUploads(
     const mime = String(req.headers['x-luma-mime'] ?? 'application/octet-stream').slice(0, 100)
     const name = String(req.headers['x-luma-filename'] ?? 'archivo').slice(0, 200)
     const kind = kindOf(mime)
-    if (kind === 'other') return reply.code(400).send({ error: 'Solo se permiten imágenes y videos.' })
+    if (kind === 'other')
+      return reply.code(400).send({ error: 'Solo se permiten imágenes y videos.' })
     const limit = MAX_BYTES[kind]
     const announced = Number(req.headers['content-length'] ?? 0)
     if (announced > limit) {
