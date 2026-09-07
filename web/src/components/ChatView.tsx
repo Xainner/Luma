@@ -1,12 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Virtualizer, type VirtualizerHandle } from 'virtua'
-import type { Chat, ImageAttachment, Profile, ThoughtEffort, VideoAttachment } from '../types'
+import type {
+  Chat,
+  ChatMessage,
+  ImageAttachment,
+  Profile,
+  ThoughtEffort,
+  VideoAttachment,
+} from '../types'
 import { useI18n, type I18nKey } from '../i18n'
 import { useComposerStore } from '../stores/composer'
 import Composer from './composer/Composer'
 import Logo from './Logo'
 import MessageBubble from './MessageBubble'
+import ScrollToBottom from './chat/ScrollToBottom'
 
 interface ChatViewProps {
   chat: Chat | null
@@ -25,6 +33,8 @@ interface ChatViewProps {
   onStop: () => void
   onEditMessage: (id: string, newText: string) => void
   onDeleteMessage: (id: string) => void
+  onDeleteFromHere: (id: string) => void
+  onExportMessage: (message: ChatMessage) => void
   onRegenerate: () => void
 }
 
@@ -52,6 +62,8 @@ export default function ChatView({
   onStop,
   onEditMessage,
   onDeleteMessage,
+  onDeleteFromHere,
+  onExportMessage,
   onRegenerate,
 }: ChatViewProps) {
   const { t } = useI18n()
@@ -98,7 +110,7 @@ export default function ChatView({
 
   return (
     <div
-      className="flex h-full flex-col"
+      className="relative flex h-full flex-col"
       onDragEnter={(e) => {
         e.preventDefault()
         setIsDragging(true)
@@ -184,6 +196,8 @@ export default function ChatView({
                     isStreaming={isStreaming}
                     onEdit={onEditMessage}
                     onDelete={onDeleteMessage}
+                    onDeleteFromHere={onDeleteFromHere}
+                    onExportMessage={onExportMessage}
                     onRegenerate={onRegenerate}
                   />
                 </div>
@@ -200,6 +214,17 @@ export default function ChatView({
               {composer}
             </motion.div>
           </div>
+          <ScrollToBottom
+            visible={!atBottom && messages.length > 0}
+            onClick={() => {
+              setAtBottom(true)
+              if (messages.length > 0) {
+                requestAnimationFrame(() => {
+                  virtRef.current?.scrollToIndex(messages.length - 1, { align: 'end' })
+                })
+              }
+            }}
+          />
         </>
       )}
     </div>

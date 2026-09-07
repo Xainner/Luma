@@ -38,6 +38,14 @@ export function exportChatJson(chat: Chat): void {
   download(`${sanitizeFilename(chat.title)}.json`, blob)
 }
 
+/** Exporta una sola respuesta como Markdown. */
+export function exportMessageMarkdown(title: string, content: string): void {
+  download(
+    `${sanitizeFilename(title || 'respuesta')}-respuesta.md`,
+    new Blob([content], { type: 'text/markdown' }),
+  )
+}
+
 /** jsPDF va en chunk aparte (dynamic import) para no engordar el bundle inicial. */
 export async function exportChatPdf(chat: Chat): Promise<void> {
   const { jsPDF } = await import('jspdf')

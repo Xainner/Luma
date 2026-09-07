@@ -48,7 +48,12 @@ import ChatHeader from './components/app-shell/ChatHeader'
 import type { ExportFormat } from './components/app-shell/ChatRowMenu'
 import { TooltipProvider } from './components/ui/tooltip'
 import { I18nProvider, translate } from './i18n'
-import { exportChatJson, exportChatMarkdown, exportChatPdf } from './lib/export'
+import {
+  exportChatMarkdown,
+  exportChatJson,
+  exportChatPdf,
+  exportMessageMarkdown,
+} from './lib/export'
 import { stripVideoEphemeral } from './lib/videos'
 import { useUIStore } from './stores/ui'
 import { Toaster, toast } from 'sonner'
@@ -496,6 +501,26 @@ export default function App() {
     void reloadChats()
   }
 
+  /** Elimina un mensaje y todo lo posterior (menú ••• de respuesta). */
+  async function handleDeleteFromHere(messageId: string) {
+    const chat = activeChat
+    if (!chat || streamingRef.current) return
+    const idx = chat.messages.findIndex((m) => m.id === messageId)
+    if (idx < 0) return
+    const messages = chat.messages.slice(0, idx)
+    // eslint-disable-next-line react-hooks/purity -- event handler, no render
+    const next: Chat = { ...chat, messages, updatedAt: Date.now() }
+    if (messages.length === 0) next.title = ''
+    setActiveChat(next)
+    try {
+      await updateChat(next)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : translate(lang, 'toast.deleteFailed'))
+      return
+    }
+    void reloadChats()
+  }
+
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       const mod = e.ctrlKey || e.metaKey
@@ -559,6 +584,11 @@ export default function App() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : translate(lang, 'toast.saveFailed'))
     }
+  }
+
+  /** Exporta una sola respuesta como Markdown (menú •••). */
+  function handleExportMessage(message: ChatMessage) {
+    exportMessageMarkdown(activeChat?.title ?? 'respuesta', message.content)
   }
 
   async function handleExportChat(id: string, format: ExportFormat) {
@@ -718,6 +748,8 @@ export default function App() {
               onStop={handleStop}
               onEditMessage={handleEditMessage}
               onDeleteMessage={(id) => void handleDeleteMessage(id)}
+              onDeleteFromHere={(id) => void handleDeleteFromHere(id)}
+              onExportMessage={handleExportMessage}
               onRegenerate={handleRegenerate}
             />
           </motion.div>

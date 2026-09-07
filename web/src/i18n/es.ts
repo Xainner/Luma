@@ -128,6 +128,15 @@ export const es = {
   'thinking.descMedium': 'Balance entre velocidad y profundidad.',
   'thinking.descHigh': 'Mayor presupuesto para problemas complejos.',
   'chat.emptySubtitle': 'Pregunta, crea, analiza o adjunta algo.',
+  'chat.saveRegenerate': 'Guardar y regenerar',
+  'reasoning.thinking': 'Pensando…',
+  'reasoning.title': 'Razonamiento',
+  'reasoning.time': '{s} s',
+  'msg.copy': 'Copiar',
+  'msg.more': 'Más opciones',
+  'msg.exportResponse': 'Exportar respuesta',
+  'msg.deleteFromHere': 'Eliminar desde aquí',
+  'scroll.bottom': 'Ir al final',
 
   /* Chat */
   'chat.openMenu': 'Abrir menú',
