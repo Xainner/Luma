@@ -1,12 +1,20 @@
-import { useMemo, useState } from 'react'
-import { motion } from 'framer-motion'
-import { ArrowLeft, Check, Info, Loader2, RefreshCw, Save, Trash2 } from 'lucide-react'
 import type { AppConfig, ConfigMeta, Language, Profile, ThoughtEffort, User } from '../types'
-import { useI18n } from '../i18n'
-import { inputClass, labelClass } from '../lib/ui'
-import AdminPanel from './AdminPanel'
-import ApiKeyField from './ApiKeyField'
-import ProfilesManager from './ProfilesManager'
+import type { ExportFormat } from './app-shell/ChatRowMenu'
+import { useUIStore } from '../stores/ui'
+import SettingsShell from './settings/SettingsShell'
+import GeneralSettings from './settings/GeneralSettings'
+import AppearanceSettings from './settings/AppearanceSettings'
+import ConnectionSettings from './settings/ConnectionSettings'
+import ModelSettings from './settings/ModelSettings'
+import ReasoningSettings from './settings/ReasoningSettings'
+import ProfileSettings from './settings/ProfileSettings'
+import AttachmentSettings from './settings/AttachmentSettings'
+import ShortcutSettings from './settings/ShortcutSettings'
+import DataSettings from './settings/DataSettings'
+import AboutSettings from './settings/AboutSettings'
+import AdminSettings from './settings/admin/AdminSettings'
+
+const APP_VERSION = '0.1.0'
 
 interface SettingsViewProps {
   config: AppConfig
@@ -15,545 +23,111 @@ interface SettingsViewProps {
   profiles: Profile[]
   user: User
   meta: ConfigMeta
+  activeChatId: string | null
+  activeChatTitle: string
   onDiscover: (baseUrl?: string, apiKey?: string) => Promise<string[]>
-  onSave: (config: AppConfig) => Promise<void>
+  onSaveConnection: (patch: {
+    baseUrl: string
+    apiKey: string
+    clearApiKey: boolean
+  }) => Promise<void>
+  onSetDefaultModel: (model: string) => Promise<void>
+  onSetDefaultThinking: (effort: ThoughtEffort) => Promise<void>
+  onSetModelThinking: (model: string, effort: ThoughtEffort | null) => Promise<void>
   onBack: () => void
   onWipeData: () => Promise<void>
   onCreateProfile: (profile: Partial<Profile>) => Promise<Profile>
   onUpdateProfile: (profile: Profile) => Promise<void>
   onDeleteProfile: (id: string) => Promise<void>
+  onDuplicateProfile: (profile: Profile) => Promise<void>
   onSetProfile: (id: string) => void
   onSetScope: (scope: ConfigMeta['scope']) => Promise<void>
   onSaveSystemPrompt: (prompt: string) => Promise<void>
   onLanguageChange: (lang: Language) => void
+  onExportActiveChat: (format: ExportFormat) => void
+  onDeleteActiveChat: () => void
+  onLogout: () => void
 }
 
-export default function SettingsView({
-  config,
-  apiKeySet,
-  models,
-  profiles,
-  user,
-  meta,
-  onDiscover,
-  onSave,
-  onBack,
-  onWipeData,
-  onCreateProfile,
-  onUpdateProfile,
-  onDeleteProfile,
-  onSetProfile,
-  onSetScope,
-  onSaveSystemPrompt,
-  onLanguageChange,
-}: SettingsViewProps) {
-  const { t } = useI18n()
-  const [baseUrl, setBaseUrl] = useState(config.baseUrl)
-  const [apiKey, setApiKey] = useState('')
-  const [clearKey, setClearKey] = useState(false)
-  const [model, setModel] = useState(config.model)
-  const [temperature, setTemperature] = useState(config.temperature)
-  const [maxTokens, setMaxTokens] = useState(config.maxTokens)
-  const [thinkingEffort, setThinkingEffort] = useState<ThoughtEffort>(
-    config.thinkingEffort ?? 'medium',
-  )
-  const [modelThinking, setModelThinking] = useState<Record<string, ThoughtEffort>>(
-    config.modelThinking ?? {},
-  )
-  const [profileId, setProfileId] = useState(config.profileId)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [discovering, setDiscovering] = useState(false)
-  const [discoverError, setDiscoverError] = useState('')
-  const [confirmWipe, setConfirmWipe] = useState(false)
-
+/** Ajustes v2 (§18): shell por categorías. Sin barra global de Guardar (§43). */
+export default function SettingsView(props: SettingsViewProps) {
+  const { config, apiKeySet, models, profiles, user, meta } = props
+  const section = useUIStore((s) => s.settingsSection)
   const readOnly = meta.scope === 'global' && !meta.isAdmin
 
-  const dirty = useMemo(
-    () =>
-      baseUrl !== config.baseUrl ||
-      apiKey !== config.apiKey ||
-      clearKey ||
-      model !== config.model ||
-      temperature !== config.temperature ||
-      maxTokens !== config.maxTokens ||
-      thinkingEffort !== (config.thinkingEffort ?? 'medium') ||
-      JSON.stringify(modelThinking) !== JSON.stringify(config.modelThinking ?? {}) ||
-      profileId !== config.profileId,
-    [
-      config,
-      baseUrl,
-      apiKey,
-      clearKey,
-      model,
-      temperature,
-      maxTokens,
-      thinkingEffort,
-      modelThinking,
-      profileId,
-    ],
-  )
-
-  async function handleDiscover() {
-    setDiscoverError('')
-    setDiscovering(true)
-    try {
-      const found = await onDiscover(baseUrl, apiKey || undefined)
-      if (found.length === 0) setDiscoverError(t('settings.noModels'))
-      else setModel((prev) => (found.includes(prev) ? prev : found[0]))
-    } catch (err) {
-      setDiscoverError(err instanceof Error ? err.message : t('settings.discovering'))
-    } finally {
-      setDiscovering(false)
-    }
-  }
-
-  async function handleSave() {
-    if (saving || readOnly) return
-    setSaving(true)
-    setSaved(false)
-    try {
-      const payload = {
-        ...config,
-        baseUrl: baseUrl.trim(),
-        apiKey: apiKey.trim(),
-        clearApiKey: clearKey,
-        model,
-        temperature,
-        maxTokens: Math.max(1, Math.floor(Number(maxTokens) || 4096)),
-        thinkingEffort,
-        modelThinking,
-        profileId,
-      } as AppConfig & { clearApiKey?: boolean }
-      await onSave(payload)
-      if (clearKey) setClearKey(false)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
-    } catch (err) {
-      setDiscoverError(err instanceof Error ? err.message : t('settings.saved'))
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function handleWipe() {
-    if (!confirmWipe) {
-      setConfirmWipe(true)
-      setTimeout(() => setConfirmWipe(false), 3500)
-      return
-    }
-    await onWipeData()
-    setConfirmWipe(false)
-  }
-
-  const editableClass = readOnly ? `${inputClass} opacity-60` : inputClass
-
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex h-14 shrink-0 items-center gap-3 border-b border-white/8 px-4">
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label={t('settings.back')}
-          className="rounded-lg p-2 text-mist-500 transition-colors hover:bg-white/5 hover:text-mist-100"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <h1 className="font-display text-base font-bold tracking-tight text-mist-100">
-          {t('settings.title')}
-        </h1>
-        <span className="ml-auto flex items-center gap-1.5 text-xs text-mist-500">
-          {user.email}
-          <span
-            className={`rounded-lg px-2 py-0.5 font-semibold ${meta.isAdmin ? 'bg-iris-500/15 text-iris-300' : 'bg-white/5 text-mist-400'}`}
-          >
-            {meta.isAdmin ? t('settings.badgeAdmin') : t('settings.badgeUser')}
-          </span>
-        </span>
-      </header>
-
-      <div className="flex-1 overflow-y-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="mx-auto max-w-2xl space-y-6 px-4 py-6"
-        >
-          {readOnly && (
-            <div className="flex items-start gap-3 rounded-2xl border border-iris-500/25 bg-iris-500/5 p-4 text-sm text-mist-400">
-              <Info size={17} className="mt-0.5 shrink-0 text-iris-300" />
-              <p>{t('settings.readOnlyNote')}</p>
-            </div>
-          )}
-
-          {meta.scope === 'user' && !readOnly && (
-            <div className="rounded-2xl border border-nebula-400/20 bg-nebula-400/5 p-4 text-sm text-mist-400">
-              {t('settings.userModeNote')}
-            </div>
-          )}
-
-          {/* Conexión + Modelo */}
-          <section className="rounded-2xl border border-white/10 bg-ink-900/70 p-5 backdrop-blur-xl">
-            <h2 className="mb-4 font-display text-lg font-bold text-mist-100">
-              {meta.isAdmin && meta.scope === 'global'
-                ? t('settings.globalConfig')
-                : t('settings.connectionTitle')}
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="st-base" className={labelClass}>
-                  {t('settings.urlLabel')}
-                </label>
-                <input
-                  id="st-base"
-                  type="url"
-                  inputMode="url"
-                  autoComplete="off"
-                  spellCheck={false}
-                  value={baseUrl}
-                  onChange={(e) => setBaseUrl(e.target.value)}
-                  placeholder={t('onboarding.urlPlaceholder')}
-                  disabled={readOnly}
-                  className={editableClass}
-                />
-              </div>
-
-              <div>
-                <ApiKeyField
-                  id="st-key"
-                  value={apiKey}
-                  onChange={setApiKey}
-                  disabled={readOnly}
-                  hasStored={apiKeySet}
-                />
-                {apiKeySet && !readOnly && (
-                  <button
-                    type="button"
-                    onClick={() => setClearKey((v) => !v)}
-                    className={`mt-2 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
-                      clearKey
-                        ? 'border-red-500 bg-red-500 text-white'
-                        : 'border-red-500/40 text-red-300 hover:bg-red-500/15'
-                    }`}
-                  >
-                    <Trash2 size={12} />
-                    {clearKey ? t('apikey.confirmRemove') : t('apikey.remove')}
-                  </button>
-                )}
-              </div>
-
-              <div className="flex items-end gap-2">
-                <div className="min-w-0 flex-1">
-                  <label htmlFor="st-model" className={labelClass}>
-                    {t('settings.model')}
-                  </label>
-                  <select
-                    id="st-model"
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    disabled={readOnly}
-                    className={`${editableClass} ${models.length === 0 ? 'opacity-50' : ''}`}
-                  >
-                    {models.length === 0 && <option value="">{t('settings.noModels')}</option>}
-                    {models.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleDiscover}
-                  disabled={discovering || readOnly}
-                  className="inline-flex h-[42px] shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3.5 text-sm font-medium text-mist-200 transition-all hover:border-nebula-400/50 hover:bg-white/10 disabled:opacity-60"
-                >
-                  {discovering ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <RefreshCw size={16} />
-                  )}
-                  {discovering ? t('settings.discovering') : t('settings.discover')}
-                </button>
-              </div>
-
-              {discoverError && (
-                <p className="rounded-xl border border-red-500/25 bg-red-500/10 px-3.5 py-2 text-sm text-red-300">
-                  {discoverError}
-                </p>
-              )}
-
-              <div>
-                <label htmlFor="st-profile" className={labelClass}>
-                  {t('settings.profile')}
-                </label>
-                <select
-                  id="st-profile"
-                  value={profileId}
-                  onChange={(e) => setProfileId(e.target.value)}
-                  disabled={readOnly}
-                  className={editableClass}
-                >
-                  <option value="">{t('settings.noProfile')}</option>
-                  {profiles.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.emoji} {p.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <label htmlFor="st-temp" className="text-sm font-medium text-mist-200">
-                    {t('settings.temperature')}
-                  </label>
-                  <span className="font-mono text-sm text-nebula-300">
-                    {temperature.toFixed(1)}
-                  </span>
-                </div>
-                <input
-                  id="st-temp"
-                  type="range"
-                  min={0}
-                  max={2}
-                  step={0.1}
-                  value={temperature}
-                  onChange={(e) => setTemperature(Number(e.target.value))}
-                  disabled={readOnly}
-                  className="w-full accent-iris-500"
-                />
-                <div className="mt-0.5 flex justify-between text-[11px] text-mist-600">
-                  <span>{t('settings.precise')}</span>
-                  <span>{t('settings.creative')}</span>
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="st-tokens" className={labelClass}>
-                  {t('settings.maxTokens')}
-                </label>
-                <input
-                  id="st-tokens"
-                  type="number"
-                  min={1}
-                  value={maxTokens}
-                  onChange={(e) => setMaxTokens(Number(e.target.value))}
-                  disabled={readOnly}
-                  className={editableClass}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="st-thinking" className={labelClass}>
-                  {t('settings.thinkingDefault')}
-                </label>
-                <select
-                  id="st-thinking"
-                  value={thinkingEffort}
-                  onChange={(e) => setThinkingEffort(e.target.value as ThoughtEffort)}
-                  disabled={readOnly}
-                  className={editableClass}
-                >
-                  <option value="off">{t('thinking.off')}</option>
-                  <option value="low">{t('thinking.low')}</option>
-                  <option value="medium">{t('thinking.medium')}</option>
-                  <option value="high">{t('thinking.high')}</option>
-                </select>
-                <p className="mt-1.5 text-xs text-mist-600">{t('settings.thinkingNote')}</p>
-              </div>
-
-              <div>
-                <span className={labelClass}>{t('settings.thinkingOverrides')}</span>
-                {Object.keys(modelThinking).length === 0 ? (
-                  <p className="text-xs text-mist-600">{t('settings.thinkingNoOverrides')}</p>
-                ) : (
-                  <ul className="space-y-1.5">
-                    {Object.entries(modelThinking).map(([m, eff]) => (
-                      <li
-                        key={m}
-                        className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-1.5"
-                      >
-                        <span className="min-w-0 flex-1 truncate font-mono text-xs text-mist-300">
-                          {m}
-                        </span>
-                        <select
-                          value={eff}
-                          onChange={(e) =>
-                            setModelThinking((prev) => ({
-                              ...prev,
-                              [m]: e.target.value as ThoughtEffort,
-                            }))
-                          }
-                          disabled={readOnly}
-                          aria-label={m}
-                          className="rounded-lg border border-white/10 bg-ink-800 px-1.5 py-0.5 text-xs text-mist-200 focus:outline-none"
-                        >
-                          <option value="off">{t('thinking.off')}</option>
-                          <option value="low">{t('thinking.low')}</option>
-                          <option value="medium">{t('thinking.medium')}</option>
-                          <option value="high">{t('thinking.high')}</option>
-                        </select>
-                        {!readOnly && (
-                          <button
-                            type="button"
-                            aria-label={t('settings.thinkingRemove', { model: m })}
-                            onClick={() =>
-                              setModelThinking((prev) => {
-                                const next = { ...prev }
-                                delete next[m]
-                                return next
-                              })
-                            }
-                            className="rounded-lg p-1 text-mist-600 transition-colors hover:bg-red-500/15 hover:text-red-400"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="st-lang" className={labelClass}>
-                  {t('settings.language')}
-                </label>
-                <select
-                  id="st-lang"
-                  value={config.language}
-                  onChange={(e) => onLanguageChange(e.target.value as Language)}
-                  disabled={readOnly}
-                  className={editableClass}
-                >
-                  <option value="es">Español</option>
-                  <option value="en">English</option>
-                </select>
-              </div>
-            </div>
-          </section>
-
-          {/* System prompt: solo admin edita; resto lectura */}
-          <section className="rounded-2xl border border-white/10 bg-ink-900/70 p-5 backdrop-blur-xl">
-            <h2 className="mb-1 flex items-center gap-2 font-display text-lg font-bold text-mist-100">
-              {t('settings.systemPrompt')}
-            </h2>
-            <p className="mb-3 text-sm text-mist-500">
-              {meta.isAdmin
-                ? t('settings.systemPromptAdminDesc')
-                : t('settings.systemPromptUserDesc')}
-            </p>
-            {meta.isAdmin ? (
-              <AdminPanel
-                scope={meta.scope}
-                systemPrompt={config.systemPrompt}
-                onSetScope={onSetScope}
-                onSaveSystemPrompt={onSaveSystemPrompt}
-              />
-            ) : (
-              <textarea
-                rows={4}
-                readOnly
-                value={config.systemPrompt}
-                className={`${inputClass} resize-y opacity-60`}
-              />
-            )}
-          </section>
-
-          {/* Perfiles */}
-          <section className="rounded-2xl border border-white/10 bg-ink-900/70 p-5 backdrop-blur-xl">
-            <h2 className="mb-1 flex items-center gap-2 font-display text-lg font-bold text-mist-100">
-              {t('settings.profiles')}
-            </h2>
-            <p className="mb-4 text-sm text-mist-500">
-              {t('settings.profilesDesc')}
-              {!meta.isAdmin && t('settings.profilesDescNonAdmin')}
-            </p>
-            {meta.isAdmin ? (
-              <ProfilesManager
-                profiles={profiles}
-                activeProfileId={profileId}
-                onCreate={onCreateProfile}
-                onUpdate={onUpdateProfile}
-                onDelete={onDeleteProfile}
-                onSetActive={(id) => {
-                  onSetProfile(id)
-                  setProfileId(id)
-                }}
-              />
-            ) : (
-              <ul className="space-y-2">
-                {profiles.length === 0 && (
-                  <p className="text-sm text-mist-600">{t('settings.noProfiles')}</p>
-                )}
-                {profiles.map((p) => (
-                  <li
-                    key={p.id}
-                    className="flex items-start gap-3 rounded-xl border border-white/10 bg-ink-850 p-3"
-                  >
-                    <span className="text-xl" aria-hidden="true">
-                      {p.emoji}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-mist-100">{p.name}</p>
-                      <p className="text-xs text-mist-500">
-                        {p.masterPrompt || t('settings.noMaster')}
-                      </p>
-                    </div>
-                    {profileId === p.id && (
-                      <span className="rounded-lg bg-iris-500/15 px-2 py-0.5 text-xs font-semibold text-iris-300">
-                        {t('settings.active')}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          {/* Zona de peligro */}
-          <section className="rounded-2xl border border-red-500/20 bg-red-500/5 p-5">
-            <h2 className="mb-2 flex items-center gap-2 font-display text-lg font-bold text-red-300">
-              {t('settings.danger')}
-            </h2>
-            <p className="mb-4 text-sm text-mist-500">{t('settings.dangerDesc')}</p>
-            <button
-              type="button"
-              onClick={handleWipe}
-              className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
-                confirmWipe
-                  ? 'border-red-500 bg-red-500 text-white'
-                  : 'border-red-500/40 bg-transparent text-red-300 hover:bg-red-500/15'
-              }`}
-            >
-              <Trash2 size={16} />
-              {confirmWipe ? t('settings.confirmWipe') : t('settings.wipeChats')}
-            </button>
-          </section>
-        </motion.div>
-      </div>
-
-      {!readOnly && (
-        <div className="shrink-0 border-t border-white/8 px-4 py-4">
-          <div className="mx-auto flex max-w-2xl items-center justify-end gap-3">
-            {saved && (
-              <span className="inline-flex items-center gap-1.5 text-sm text-nebula-300">
-                <Check size={15} /> {t('settings.saved')}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={!dirty || saving}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-nebula-500 via-iris-500 to-flare-500 px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(139,92,246,0.4)] transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-            >
-              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-              {t('settings.save')}
-            </button>
-          </div>
-        </div>
+    <SettingsShell user={user} isAdmin={meta.isAdmin} onBack={props.onBack}>
+      {section === 'general' && (
+        <GeneralSettings language={config.language} onLanguageChange={props.onLanguageChange} />
       )}
-    </div>
+      {section === 'appearance' && <AppearanceSettings />}
+      {section === 'connection' && (
+        <ConnectionSettings
+          config={config}
+          apiKeySet={apiKeySet}
+          readOnly={readOnly}
+          onDiscover={props.onDiscover}
+          onSave={props.onSaveConnection}
+        />
+      )}
+      {section === 'models' && (
+        <ModelSettings
+          config={config}
+          models={models}
+          readOnly={readOnly}
+          onDiscover={() => props.onDiscover()}
+          onSetDefault={props.onSetDefaultModel}
+          onSetThinking={props.onSetModelThinking}
+        />
+      )}
+      {section === 'reasoning' && (
+        <ReasoningSettings
+          config={config}
+          models={models}
+          readOnly={readOnly}
+          onSetDefault={props.onSetDefaultThinking}
+          onSetModelThinking={props.onSetModelThinking}
+        />
+      )}
+      {section === 'profiles' && (
+        <ProfileSettings
+          profiles={profiles}
+          activeProfileId={config.profileId}
+          isAdmin={meta.isAdmin}
+          onCreate={props.onCreateProfile}
+          onUpdate={props.onUpdateProfile}
+          onDelete={props.onDeleteProfile}
+          onDuplicate={props.onDuplicateProfile}
+          onSetActive={props.onSetProfile}
+        />
+      )}
+      {section === 'attachments' && <AttachmentSettings />}
+      {section === 'shortcuts' && <ShortcutSettings />}
+      {section === 'data' && (
+        <DataSettings
+          activeChatId={props.activeChatId}
+          activeChatTitle={props.activeChatTitle}
+          onExport={props.onExportActiveChat}
+          onDeleteCurrent={props.onDeleteActiveChat}
+          onWipe={props.onWipeData}
+          onLogout={props.onLogout}
+        />
+      )}
+      {section === 'admin' && meta.isAdmin && (
+        <AdminSettings
+          currentUserId={user.id}
+          scope={meta.scope}
+          systemPrompt={config.systemPrompt}
+          baseUrl={config.baseUrl}
+          modelsCount={models.length}
+          version={APP_VERSION}
+          upstreamOk={models.length > 0 ? true : null}
+          onSetScope={props.onSetScope}
+          onSaveSystemPrompt={props.onSaveSystemPrompt}
+          onTestUpstream={() => props.onDiscover().then(() => {})}
+        />
+      )}
+      {section === 'about' && <AboutSettings version={APP_VERSION} />}
+    </SettingsShell>
   )
 }

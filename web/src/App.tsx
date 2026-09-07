@@ -182,6 +182,45 @@ export default function App() {
     }
   }
 
+  /** Guardado explícito de conexión (sección propia, §21+§43). */
+  async function handleSaveConnection(patch: {
+    baseUrl: string
+    apiKey: string
+    clearApiKey: boolean
+  }) {
+    if (!config) return
+    await handleSaveSettings({
+      ...config,
+      baseUrl: patch.baseUrl,
+      apiKey: patch.apiKey,
+      clearApiKey: patch.clearApiKey,
+    } as AppConfig & { clearApiKey?: boolean })
+    if (patch.baseUrl !== config.baseUrl || patch.apiKey || patch.clearApiKey) {
+      void handleDiscoverModels(patch.baseUrl || undefined, patch.apiKey || undefined).catch(
+        () => {},
+      )
+    }
+  }
+
+  /** Thinking por defecto (inmediato, §23+§43). */
+  async function handleSetDefaultThinking(effort: ThoughtEffort) {
+    if (!config) return
+    const next = { ...config, thinkingEffort: effort }
+    setConfig(next)
+    await saveConfig(next).catch(() => {})
+  }
+
+  /** Override por modelo; effort null = volver al predeterminado (sin × ambigua). */
+  async function handleSetModelThinking(model: string, effort: ThoughtEffort | null) {
+    if (!config) return
+    const modelThinking = { ...(config.modelThinking ?? {}) }
+    if (effort === null) delete modelThinking[model]
+    else modelThinking[model] = effort
+    const next = { ...config, modelThinking }
+    setConfig(next)
+    await saveConfig(next).catch(() => {})
+  }
+
   async function handleSetScope(scope: ConfigMeta['scope']) {
     await setConfigScope(scope)
     const resp = await getConfig()
@@ -232,6 +271,16 @@ export default function App() {
       await saveConfig(next).catch(() => {})
     }
     setProfiles(await listProfiles())
+  }
+
+  async function handleDuplicateProfile(profile: Profile): Promise<void> {
+    const copySuffix = translate(lang, 'settings.profiles.copySuffix')
+    await handleCreateProfile({
+      name: `${profile.name} ${copySuffix}`,
+      masterPrompt: profile.masterPrompt,
+      emoji: profile.emoji,
+      color: profile.color,
+    })
   }
 
   async function handleSetProfile(id: string): Promise<void> {
@@ -531,9 +580,15 @@ export default function App() {
       } else if (mod && (e.key === 'n' || e.key === 'N')) {
         e.preventDefault()
         handleNewChat()
+      } else if (mod && e.shiftKey && (e.key === 'o' || e.key === 'O')) {
+        e.preventDefault()
+        ui.toggleSidebarCollapsed()
       } else if (e.key === 'Escape') {
+        // Prioridad §26: 1) cerrar overlay abierto; 2) detener generación.
+        const overlayOpen =
+          document.querySelector('[role="dialog"],[role="menu"],[role="listbox"]') !== null
         if (ui.paletteOpen) ui.setPaletteOpen(false)
-        else handleStop()
+        else if (!overlayOpen) handleStop()
       } else if (e.key === '/' && !ui.paletteOpen) {
         const target = e.target as HTMLElement | null
         const tag = target?.tagName
@@ -709,17 +764,30 @@ export default function App() {
               profiles={profiles}
               user={user}
               meta={configMeta}
+              activeChatId={activeId}
+              activeChatTitle={activeChat?.title ?? ''}
               onDiscover={handleDiscoverModels}
-              onSave={handleSaveSettings}
+              onSaveConnection={handleSaveConnection}
+              onSetDefaultModel={(m) => handleModelChange(m)}
+              onSetDefaultThinking={(e) => handleSetDefaultThinking(e)}
+              onSetModelThinking={(m, e) => handleSetModelThinking(m, e)}
               onBack={() => goChat()}
               onWipeData={handleWipeData}
               onCreateProfile={handleCreateProfile}
               onUpdateProfile={handleUpdateProfile}
               onDeleteProfile={handleDeleteProfile}
+              onDuplicateProfile={handleDuplicateProfile}
               onSetProfile={(id) => void handleSetProfile(id)}
               onSetScope={handleSetScope}
               onSaveSystemPrompt={handleSaveSystemPrompt}
               onLanguageChange={handleChangeLanguage}
+              onExportActiveChat={(format) => {
+                if (activeId) void handleExportChat(activeId, format)
+              }}
+              onDeleteActiveChat={() => {
+                if (activeId) void handleDeleteChat(activeId)
+              }}
+              onLogout={() => void handleLogout()}
             />
           </motion.div>
         ) : (

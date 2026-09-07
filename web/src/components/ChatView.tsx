@@ -11,6 +11,7 @@ import type {
 } from '../types'
 import { useI18n, type I18nKey } from '../i18n'
 import { useComposerStore } from '../stores/composer'
+import { useUIStore } from '../stores/ui'
 import Composer from './composer/Composer'
 import Logo from './Logo'
 import MessageBubble from './MessageBubble'
@@ -67,6 +68,8 @@ export default function ChatView({
   onRegenerate,
 }: ChatViewProps) {
   const { t } = useI18n()
+  const autoFollow = useUIStore((s) => s.autoFollow)
+  const showSuggestions = useUIStore((s) => s.showSuggestions)
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtRef = useRef<VirtualizerHandle>(null)
   const [atBottom, setAtBottom] = useState(true)
@@ -84,10 +87,12 @@ export default function ChatView({
   }
 
   useEffect(() => {
-    if (atBottom && messages.length > 0) {
+    // Autoscroll inteligente (§14): solo sigue si el usuario ya estaba abajo
+    // y la preferencia está activa.
+    if (autoFollow && atBottom && messages.length > 0) {
       virtRef.current?.scrollToIndex(messages.length - 1, { align: 'end' })
     }
-  }, [messages, isStreaming, atBottom])
+  }, [messages, isStreaming, atBottom, autoFollow])
 
   const composer = (
     <Composer
@@ -165,20 +170,22 @@ export default function ChatView({
             >
               {composer}
             </motion.div>
-            <div
-              className={`mt-4 flex flex-wrap justify-center gap-2 transition-opacity duration-200 ${hasDraft ? 'pointer-events-none opacity-30' : 'opacity-100'}`}
-            >
-              {SUGGESTIONS.map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => void onSend(t(k), [], [])}
-                  className="h-11 rounded-full border border-[var(--border)] bg-[var(--bg-subtle)] px-4 text-[13px] text-[var(--text-muted)] transition-all hover:border-[var(--accent)]/40 hover:text-[var(--text)] active:scale-[0.98]"
-                >
-                  {t(k)}
-                </button>
-              ))}
-            </div>
+            {showSuggestions && (
+              <div
+                className={`mt-4 flex flex-wrap justify-center gap-2 transition-opacity duration-200 ${hasDraft ? 'pointer-events-none opacity-30' : 'opacity-100'}`}
+              >
+                {SUGGESTIONS.map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => void onSend(t(k), [], [])}
+                    className="h-11 rounded-full border border-[var(--border)] bg-[var(--bg-subtle)] px-4 text-[13px] text-[var(--text-muted)] transition-all hover:border-[var(--accent)]/40 hover:text-[var(--text)] active:scale-[0.98]"
+                  >
+                    {t(k)}
+                  </button>
+                ))}
+              </div>
+            )}
           </motion.div>
         </div>
       ) : (

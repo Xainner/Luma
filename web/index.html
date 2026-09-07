@@ -30,6 +30,15 @@
       } catch (e) {
         document.documentElement.dataset.theme = 'dark'
       }
+      // Acento y movimiento antes del primer paint (sin flash).
+      try {
+        var a = localStorage.getItem('luma.accent') || 'nebula'
+        if (['nebula', 'cyan', 'fuchsia', 'blue', 'green', 'orange'].indexOf(a) < 0) a = 'nebula'
+        document.documentElement.dataset.accent = a
+        if (localStorage.getItem('luma.reduceMotion') === '1') {
+          document.documentElement.dataset.motion = 'reduced'
+        }
+      } catch (e2) {}
     </script>
   </head>
   <body>

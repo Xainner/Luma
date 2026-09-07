@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { ImageAttachment, Profile, ThoughtEffort, VideoAttachment } from '../../types'
 import { useI18n } from '../../i18n'
 import { useComposerStore } from '../../stores/composer'
+import { useUIStore } from '../../stores/ui'
 import AttachmentTray from './AttachmentTray'
 import ComposerToolbar from './ComposerToolbar'
 
@@ -105,7 +106,13 @@ export default function Composer({
             autosize()
           }}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+            const sendWithEnter = useUIStore.getState().enterToSend
+            const mod = e.ctrlKey || e.metaKey
+            if (
+              e.key === 'Enter' &&
+              !e.nativeEvent.isComposing &&
+              (sendWithEnter ? !e.shiftKey : mod)
+            ) {
               e.preventDefault()
               handleSend()
             }

@@ -83,6 +83,58 @@ html[data-theme='light'] {
   color-scheme: light;
 }
 
+/* Presets de acento (§20). Nebula = valores base, sin override. */
+html[data-accent='cyan'] {
+  --accent: #22d3ee;
+  --accent-2: #34d399;
+  --accent-3: #38bdf8;
+}
+html[data-theme='light'][data-accent='cyan'] {
+  --accent: #0e7490;
+  --accent-2: #059669;
+  --accent-3: #0284c7;
+}
+html[data-accent='fuchsia'] {
+  --accent: #e879f9;
+  --accent-2: #f0abfc;
+  --accent-3: #c084fc;
+}
+html[data-theme='light'][data-accent='fuchsia'] {
+  --accent: #a21caf;
+  --accent-2: #c026d3;
+  --accent-3: #9333ea;
+}
+html[data-accent='blue'] {
+  --accent: #60a5fa;
+  --accent-2: #38bdf8;
+  --accent-3: #818cf8;
+}
+html[data-theme='light'][data-accent='blue'] {
+  --accent: #1d4ed8;
+  --accent-2: #0284c7;
+  --accent-3: #4f46e5;
+}
+html[data-accent='green'] {
+  --accent: #34d399;
+  --accent-2: #a3e635;
+  --accent-3: #22d3ee;
+}
+html[data-theme='light'][data-accent='green'] {
+  --accent: #047857;
+  --accent-2: #4d7c0f;
+  --accent-3: #0e7490;
+}
+html[data-accent='orange'] {
+  --accent: #fb923c;
+  --accent-2: #fbbf24;
+  --accent-3: #f472b6;
+}
+html[data-theme='light'][data-accent='orange'] {
+  --accent: #c2410c;
+  --accent-2: #b45309;
+  --accent-3: #be123c;
+}
+
 @keyframes caret-blink {
   0%,
   100% {
@@ -167,7 +219,7 @@ html[data-theme='light'] body::after {
 }
 
 ::selection {
-  background: rgba(139, 92, 246, 0.45);
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
   color: #fff;
 }
 
@@ -252,7 +304,7 @@ html[data-theme='light'] body::after {
   margin: 0.8em 0;
   padding: 0.1em 1em;
   border-left: 3px solid var(--color-iris-500);
-  background: rgba(139, 92, 246, 0.08);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
   border-radius: 0 10px 10px 0;
   color: var(--color-mist-400);
 }
@@ -332,4 +384,14 @@ html[data-theme='light'] body::after {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Toggle manual "Reducir animaciones" (§20): mismo efecto que el SO. */
+html[data-motion='reduced'] *,
+html[data-motion='reduced'] *::before,
+html[data-motion='reduced'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }
