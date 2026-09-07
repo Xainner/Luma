@@ -2656,13 +2656,13 @@ El rework NO se considera terminado hasta cumplir:
 
 ## Settings
 
-- [ ] Navegación por categorías.
-- [ ] Modelos tienen vista propia.
-- [ ] Razonamiento tiene vista propia.
-- [ ] Apariencia tiene vista propia.
-- [ ] Adjuntos tienen vista propia.
-- [ ] Admin está separado.
-- [ ] No existe una barra global de Guardar para todo.
+- [x] Navegación por categorías.
+- [x] Modelos tienen vista propia.
+- [x] Razonamiento tiene vista propia.
+- [x] Apariencia tiene vista propia.
+- [x] Adjuntos tienen vista propia.
+- [x] Admin está separado.
+- [x] No existe una barra global de Guardar para todo.
 
 ## Visual
 
