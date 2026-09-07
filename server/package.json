@@ -10,7 +10,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsx --test test/*.test.ts",
     "migrate:strip-blobs": "tsx scripts/strip-legacy-blobs.ts --dry-run",
-    "migrate:strip-blobs:apply": "tsx scripts/strip-legacy-blobs.ts --apply"
+    "migrate:strip-blobs:apply": "tsx scripts/strip-legacy-blobs.ts --apply",
+    "migrate:img-dims": "tsx scripts/backfill-image-dims.ts --dry-run",
+    "migrate:img-dims:apply": "tsx scripts/backfill-image-dims.ts --apply"
   },
   "dependencies": {
     "@fastify/static": "^8.0.4",
