@@ -2650,7 +2650,7 @@ El rework NO se considera terminado hasta cumplir:
 - [ ] Mensaje user neutral.
 - [ ] Respuesta assistant sin card pesada.
 - [ ] Reasoning profesional y colapsable.
-- [ ] Stop integrado en Send.
+- [x] Stop integrado en Send.
 - [ ] Scroll inteligente.
 - [ ] Virtualización intacta.
 
