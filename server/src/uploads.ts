@@ -75,6 +75,13 @@ export async function registerUploads(
   app: FastifyInstance,
   opts: { getUser: (req: FastifyRequest) => Promise<User | null> },
 ): Promise<void> {
+  // Fastify responde 415 sin parser registrado: acepta binarios crudos sin
+  // bufferizar (el handler lee req.raw por streaming con su propio límite).
+  app.addContentTypeParser(
+    /^video\/.*|^image\/.*|^application\/octet-stream$|^application\/x-www-form-urlencoded$/,
+    { parseAs: 'stream' },
+    (_req, _payload, done) => done(null, undefined),
+  )
   app.post('/api/uploads', async (req, reply) => {
     const user = (req as FastifyRequest & { user?: User }).user ?? (await opts.getUser(req))
     if (!user) return reply.code(401).send({ error: 'No autenticado.' })
