@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { FileDown, Languages, Loader2, LogOut, Plus, Settings2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import type {
   AppConfig,
   Chat,
@@ -37,12 +37,16 @@ import {
   wipeData,
 } from './lib/api'
 import ChatView from './components/ChatView'
-import CommandPalette, { type PaletteItem } from './components/CommandPalette'
+import CommandPalette from './components/CommandPalette'
 import Login from './components/Login'
 import Logo from './components/Logo'
 import Onboarding from './components/Onboarding'
 import SettingsView from './components/SettingsView'
-import Sidebar from './components/Sidebar'
+import AppShell from './components/app-shell/AppShell'
+import AppSidebar from './components/app-shell/AppSidebar'
+import ChatHeader from './components/app-shell/ChatHeader'
+import type { ExportFormat } from './components/app-shell/ChatRowMenu'
+import { TooltipProvider } from './components/ui/tooltip'
 import { I18nProvider, translate } from './i18n'
 import { exportChatJson, exportChatMarkdown, exportChatPdf } from './lib/export'
 import { stripVideoEphemeral } from './lib/videos'
@@ -68,9 +72,7 @@ export default function App() {
   const view = useUIStore((s) => s.view)
   const goChat = useUIStore((s) => s.goChat)
   const goSettings = useUIStore((s) => s.goSettings)
-  const sidebarOpen = useUIStore((s) => s.sidebarOpen)
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen)
-  const paletteOpen = useUIStore((s) => s.paletteOpen)
   const [models, setModels] = useState<string[]>([])
   const [profiles, setProfiles] = useState<Profile[]>([])
   const abortRef = useRef<AbortController | null>(null)
@@ -526,65 +528,53 @@ export default function App() {
   })
 
   const lang = config?.language ?? 'es'
+  const theme = useUIStore((s) => s.theme)
+  const setTheme = useUIStore((s) => s.setTheme)
+  const collapsed = useUIStore((s) => s.sidebarCollapsed)
+  const setCollapsed = useUIStore((s) => s.setSidebarCollapsed)
+  const paletteOpen = useUIStore((s) => s.paletteOpen)
   const provider = (node: React.ReactNode) => (
     <I18nProvider lang={lang}>
-      {node}
-      <Toaster theme="dark" position="bottom-center" toastOptions={{ duration: 3500 }} />
+      <TooltipProvider delayDuration={300}>
+        {node}
+        <Toaster theme="dark" position="bottom-center" toastOptions={{ duration: 3500 }} />
+      </TooltipProvider>
     </I18nProvider>
   )
 
-  const paletteItems: PaletteItem[] = [
-    {
-      key: 'new',
-      label: translate(lang, 'sidebar.newChat'),
-      icon: Plus,
-      hint: 'Ctrl N',
-      onSelect: handleNewChat,
-    },
-    {
-      key: 'settings',
-      label: translate(lang, 'sidebar.settings'),
-      icon: Settings2,
-      onSelect: () => goSettings(),
-    },
-    ...(activeChat
-      ? [
-          {
-            key: 'export-md',
-            label: `${translate(lang, 'export.menu')} (MD)`,
-            icon: FileDown,
-            onSelect: () => exportChatMarkdown(activeChat),
-          },
-          {
-            key: 'export-json',
-            label: `${translate(lang, 'export.menu')} (JSON)`,
-            icon: FileDown,
-            onSelect: () => exportChatJson(activeChat),
-          },
-          {
-            key: 'export-pdf',
-            label: `${translate(lang, 'export.menu')} (PDF)`,
-            icon: FileDown,
-            onSelect: () =>
-              exportChatPdf(activeChat).catch((err) =>
-                toast.error(err instanceof Error ? err.message : translate(lang, 'export.failed')),
-              ),
-          },
-        ]
-      : []),
-    {
-      key: 'lang',
-      label: lang === 'es' ? 'English' : 'Español',
-      icon: Languages,
-      onSelect: () => handleChangeLanguage(lang === 'es' ? 'en' : 'es'),
-    },
-    {
-      key: 'logout',
-      label: translate(lang, 'sidebar.logout'),
-      icon: LogOut,
-      onSelect: () => void handleLogout(),
-    },
-  ]
+  async function handleModelChange(m: string) {
+    if (!config) return
+    const next = { ...config, model: m }
+    setConfig(next)
+    await saveConfig(next).catch(() => {})
+  }
+
+  async function handleRenameChat(id: string, title: string) {
+    try {
+      const chat = await getChat(id)
+      const next = { ...chat, title, updatedAt: Date.now() }
+      await updateChat(next)
+      setActiveChat((prev) => (prev && prev.id === id ? { ...prev, title } : prev))
+      await reloadChats()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : translate(lang, 'toast.saveFailed'))
+    }
+  }
+
+  async function handleExportChat(id: string, format: ExportFormat) {
+    try {
+      const chat = await getChat(id)
+      if (format === 'md') exportChatMarkdown(chat)
+      else if (format === 'json') exportChatJson(chat)
+      else {
+        await exportChatPdf(chat).catch((err) => {
+          toast.error(err instanceof Error ? err.message : translate(lang, 'export.failed'))
+        })
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : translate(lang, 'export.failed'))
+    }
+  }
 
   if (!booted) {
     return provider(
@@ -627,96 +617,137 @@ export default function App() {
     )
   }
 
-  return provider(
-    <div className="relative flex h-dvh overflow-hidden">
-      <Sidebar
-        chats={chats}
-        activeId={activeId}
-        open={sidebarOpen}
-        user={user}
-        onClose={() => setSidebarOpen(false)}
-        onSelect={(id) => void handleSelectChat(id)}
-        onNew={handleNewChat}
-        onDelete={(id) => void handleDeleteChat(id)}
-        onOpenSettings={() => goSettings()}
-        onLogout={() => void handleLogout()}
-        models={models}
-        model={config.model}
-        onModelChange={(m) => {
-          const next = { ...config, model: m }
-          setConfig(next)
-          void saveConfig(next).catch(() => {})
-        }}
-        profiles={profiles}
-        profileId={config.profileId}
-        onProfileChange={(id) => void handleSetProfile(id)}
-      />
+  const closePalette = () => useUIStore.getState().setPaletteOpen(false)
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <main className="relative min-h-0 flex-1 overflow-hidden">
-          <AnimatePresence mode="wait">
-            {view === 'settings' ? (
-              <motion.div
-                key="settings"
-                className="h-full"
-                initial={{ opacity: 0, x: 24 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -24 }}
-                transition={{ duration: 0.22 }}
-              >
-                <SettingsView
-                  config={config}
-                  apiKeySet={apiKeySet}
-                  models={models}
-                  profiles={profiles}
-                  user={user}
-                  meta={configMeta}
-                  onDiscover={handleDiscoverModels}
-                  onSave={handleSaveSettings}
-                  onBack={() => goChat()}
-                  onWipeData={handleWipeData}
-                  onCreateProfile={handleCreateProfile}
-                  onUpdateProfile={handleUpdateProfile}
-                  onDeleteProfile={handleDeleteProfile}
-                  onSetProfile={(id) => void handleSetProfile(id)}
-                  onSetScope={handleSetScope}
-                  onSaveSystemPrompt={handleSaveSystemPrompt}
-                  onLanguageChange={handleChangeLanguage}
-                />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="chat"
-                className="h-full"
-                initial={{ opacity: 0, x: -24 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 24 }}
-                transition={{ duration: 0.22 }}
-              >
-                <ChatView
-                  chat={activeChat}
-                  isStreaming={isStreaming}
-                  thinkingEffort={currentEffort()}
-                  thinkingModel={config?.model ?? ''}
-                  onThinkingChange={(e) => void handleSetThinking(e)}
-                  onSend={(t, imgs, vids) => handleSend(t, imgs, vids)}
-                  onStop={handleStop}
-                  onNewChat={handleNewChat}
-                  onOpenSidebar={() => setSidebarOpen(true)}
-                  onEditMessage={handleEditMessage}
-                  onDeleteMessage={(id) => void handleDeleteMessage(id)}
-                  onRegenerate={handleRegenerate}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </main>
-      </div>
+  return provider(
+    <AppShell
+      sidebar={
+        <AppSidebar
+          chats={chats}
+          activeId={activeId}
+          user={user}
+          theme={theme}
+          lang={lang}
+          collapsed={collapsed}
+          onToggleCollapse={() => setCollapsed(!collapsed)}
+          onSearch={() => useUIStore.getState().setPaletteOpen(true)}
+          onSelectChat={(id) => void handleSelectChat(id)}
+          onNewChat={handleNewChat}
+          onRenameChat={(id, title) => void handleRenameChat(id, title)}
+          onExportChat={(id, format) => void handleExportChat(id, format)}
+          onDeleteChat={(id) => void handleDeleteChat(id)}
+          onOpenSettings={() => goSettings()}
+          onLogout={() => void handleLogout()}
+          onThemeChange={setTheme}
+          onLanguageChange={(l) => void handleChangeLanguage(l)}
+        />
+      }
+      header={
+        view === 'chat' ? (
+          <ChatHeader
+            title={activeChat?.title || null}
+            onOpenMobileSidebar={() => setSidebarOpen(true)}
+            onExpandSidebar={() => setCollapsed(false)}
+            sidebarCollapsed={collapsed}
+            onRename={(title) => {
+              if (activeId) void handleRenameChat(activeId, title)
+            }}
+            onExport={(format) => {
+              if (activeId) void handleExportChat(activeId, format)
+            }}
+            onDelete={() => {
+              if (activeId) void handleDeleteChat(activeId)
+            }}
+          />
+        ) : null
+      }
+    >
+      <AnimatePresence mode="wait">
+        {view === 'settings' ? (
+          <motion.div
+            key="settings"
+            className="h-full"
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.22 }}
+          >
+            <SettingsView
+              config={config}
+              apiKeySet={apiKeySet}
+              models={models}
+              profiles={profiles}
+              user={user}
+              meta={configMeta}
+              onDiscover={handleDiscoverModels}
+              onSave={handleSaveSettings}
+              onBack={() => goChat()}
+              onWipeData={handleWipeData}
+              onCreateProfile={handleCreateProfile}
+              onUpdateProfile={handleUpdateProfile}
+              onDeleteProfile={handleDeleteProfile}
+              onSetProfile={(id) => void handleSetProfile(id)}
+              onSetScope={handleSetScope}
+              onSaveSystemPrompt={handleSaveSystemPrompt}
+              onLanguageChange={handleChangeLanguage}
+            />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="chat"
+            className="h-full"
+            initial={{ opacity: 0, x: -24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 24 }}
+            transition={{ duration: 0.22 }}
+          >
+            <ChatView
+              chat={activeChat}
+              isStreaming={isStreaming}
+              thinkingEffort={currentEffort()}
+              thinkingModel={config?.model ?? ''}
+              onThinkingChange={(e) => void handleSetThinking(e)}
+              models={models}
+              model={config.model}
+              onModelChange={(m) => void handleModelChange(m)}
+              profiles={profiles}
+              profileId={config.profileId}
+              onProfileChange={(id) => void handleSetProfile(id)}
+              onSend={(t, imgs, vids) => handleSend(t, imgs, vids)}
+              onStop={handleStop}
+              onEditMessage={handleEditMessage}
+              onDeleteMessage={(id) => void handleDeleteMessage(id)}
+              onRegenerate={handleRegenerate}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
       <CommandPalette
         open={paletteOpen}
-        onClose={() => useUIStore.getState().setPaletteOpen(false)}
-        items={paletteItems}
+        onClose={closePalette}
+        chats={chats}
+        activeId={activeId}
+        models={models}
+        currentModel={config.model}
+        profiles={profiles}
+        currentProfileId={config.profileId}
+        thinkingEffort={currentEffort()}
+        thinkingModel={config.model}
+        theme={theme}
+        lang={lang}
+        onSelectChat={(id) => void handleSelectChat(id)}
+        onNewChat={handleNewChat}
+        onOpenSettings={() => goSettings()}
+        onModelChange={(m) => void handleModelChange(m)}
+        onProfileChange={(id) => void handleSetProfile(id)}
+        onThinkingChange={(e) => void handleSetThinking(e)}
+        onExportChat={(format) => {
+          if (activeId) void handleExportChat(activeId, format)
+        }}
+        onThemeChange={setTheme}
+        onLanguageChange={(l) => void handleChangeLanguage(l)}
+        onLogout={() => void handleLogout()}
       />
-    </div>,
+    </AppShell>,
   )
 }

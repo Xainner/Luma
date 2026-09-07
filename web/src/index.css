@@ -6,34 +6,81 @@
   --font-display: 'Bricolage Grotesque', 'Instrument Sans', ui-sans-serif, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
 
-  --color-ink-950: #05060c;
-  --color-ink-900: #0a0c16;
-  --color-ink-850: #0e1120;
-  --color-ink-800: #141828;
-  --color-ink-700: #1c2136;
-  --color-ink-600: #2a3150;
+  /* Paleta histórica remapeada a tokens semánticos (dark/light vía vars). */
+  --color-ink-950: var(--bg-app);
+  --color-ink-900: var(--bg-elevated);
+  --color-ink-850: var(--bg-subtle);
+  --color-ink-800: var(--bg-hover);
+  --color-ink-700: var(--bg-hover);
+  --color-ink-600: var(--border-strong);
 
-  --color-mist-100: #eef1f8;
-  --color-mist-200: #dfe4f0;
-  --color-mist-400: #9aa3b8;
-  --color-mist-500: #7c86a0;
-  --color-mist-600: #5a637c;
+  --color-mist-100: var(--text);
+  --color-mist-200: var(--text-muted);
+  --color-mist-400: var(--text-muted);
+  --color-mist-500: var(--text-subtle);
+  --color-mist-600: var(--text-subtle);
 
-  --color-nebula-300: #67e8f9;
-  --color-nebula-400: #22d3ee;
-  --color-nebula-500: #06b6d4;
+  --color-nebula-300: var(--accent-2);
+  --color-nebula-400: var(--accent-2);
+  --color-nebula-500: var(--accent-2);
 
-  --color-iris-300: #c4b5fd;
-  --color-iris-400: #a78bfa;
-  --color-iris-500: #8b5cf6;
-  --color-iris-600: #7c3aed;
+  --color-iris-300: var(--accent);
+  --color-iris-400: var(--accent);
+  --color-iris-500: var(--accent);
+  --color-iris-600: var(--accent);
 
-  --color-flare-400: #f0abfc;
-  --color-flare-500: #e879f9;
+  --color-flare-400: var(--accent-3);
+  --color-flare-500: var(--accent-3);
+
+  --color-red-400: var(--danger);
+  --color-red-500: var(--danger);
+  --color-amber-400: var(--warning);
 
   --animate-caret: caret-blink 1s step-end infinite;
   --animate-float-a: float-a 9s ease-in-out infinite;
   --animate-float-b: float-b 12s ease-in-out infinite;
+}
+
+/* Tokens semánticos Luma 2.0 (§3.2). :root = dark. */
+:root {
+  --bg-app: #09090b;
+  --bg-sidebar: #0c0c0f;
+  --bg-elevated: #111116;
+  --bg-subtle: #15151b;
+  --bg-hover: #1b1b22;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --text: #f5f5f6;
+  --text-muted: #a1a1aa;
+  --text-subtle: #71717a;
+  --accent: #8b5cf6;
+  --accent-2: #22d3ee;
+  --accent-3: #e879f9;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --success: #22c55e;
+  --nebula-gradient: linear-gradient(135deg, #22d3ee 0%, #8b5cf6 52%, #e879f9 100%);
+  color-scheme: dark;
+}
+
+html[data-theme='light'] {
+  --bg-app: #ffffff;
+  --bg-sidebar: #f7f7f8;
+  --bg-elevated: #ffffff;
+  --bg-subtle: #f4f4f5;
+  --bg-hover: #ececef;
+  --border: rgba(24, 24, 27, 0.08);
+  --border-strong: rgba(24, 24, 27, 0.14);
+  --text: #18181b;
+  --text-muted: #52525b;
+  --text-subtle: #71717a;
+  --accent: #7c3aed;
+  --accent-2: #0891b2;
+  --accent-3: #c026d3;
+  --danger: #dc2626;
+  --warning: #d97706;
+  --success: #16a34a;
+  color-scheme: light;
 }
 
 @keyframes caret-blink {
@@ -66,12 +113,8 @@
   }
 }
 
-:root {
-  color-scheme: dark;
-}
-
 * {
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: var(--border);
 }
 
 html,
@@ -80,26 +123,32 @@ body,
   height: 100%;
 }
 
+html {
+  background: var(--bg-app);
+}
+
 body {
   margin: 0;
-  background-color: var(--color-ink-950);
-  color: var(--color-mist-100);
+  background-color: var(--bg-app);
+  color: var(--text);
   font-family: var(--font-sans);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
+/* Nebula como acento tenue, no tres auroras fuertes permanentes. */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   z-index: -1;
-  background:
-    radial-gradient(60rem 42rem at 12% -10%, rgba(139, 92, 246, 0.16), transparent 60%),
-    radial-gradient(52rem 38rem at 112% 6%, rgba(34, 211, 238, 0.11), transparent 55%),
-    radial-gradient(44rem 34rem at 48% 118%, rgba(232, 121, 249, 0.09), transparent 60%);
+  background: radial-gradient(56rem 36rem at 50% -12%, rgba(139, 92, 246, 0.1), transparent 60%);
   pointer-events: none;
+}
+
+html[data-theme='light'] body::before {
+  background: none;
 }
 
 body::after {
@@ -111,6 +160,10 @@ body::after {
   opacity: 0.035;
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+html[data-theme='light'] body::after {
+  display: none;
 }
 
 ::selection {
@@ -131,11 +184,11 @@ body::after {
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--border-strong);
   border-radius: 999px;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: var(--border-strong);
 }
 
 /* ---------- Markdown body ---------- */
@@ -208,8 +261,8 @@ body::after {
   font-size: 0.85em;
   padding: 0.15em 0.4em;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
   color: var(--color-nebula-300);
 }
 .md-body table {
@@ -220,19 +273,19 @@ body::after {
 }
 .md-body th,
 .md-body td {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border);
   padding: 0.45em 0.7em;
   text-align: left;
 }
 .md-body th {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-subtle);
   font-family: var(--font-display);
   font-weight: 600;
 }
 .md-body hr {
   border: 0;
   height: 1px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--border);
   margin: 1.2em 0;
 }
 .md-body img {
@@ -248,6 +301,26 @@ body::after {
 .md-body .katex-display {
   overflow-x: auto;
   padding: 0.4em 0;
+}
+
+/* Overlays/menús (Radix): entradas cortas, sin bounce. */
+@keyframes luma-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes luma-zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

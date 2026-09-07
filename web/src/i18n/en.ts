@@ -53,6 +53,62 @@ export const en: Record<I18nKey, string> = {
   'sidebar.search': 'Search conversations…',
   'sidebar.noResults': 'No results',
 
+  /* Shell v2 */
+  'shell.collapse': 'Collapse sidebar',
+  'shell.expand': 'Expand sidebar',
+  'shell.toggleSidebar': 'Toggle sidebar',
+  'nav.chats': 'Chats',
+  'nav.settings': 'Settings',
+  'groups.today': 'Today',
+  'groups.yesterday': 'Yesterday',
+  'groups.week': 'Last 7 days',
+  'groups.month': 'Last 30 days',
+  'groups.older': 'Older',
+
+  /* Conversation menu */
+  'chatmenu.open': 'Conversation options',
+  'chatmenu.rename': 'Rename',
+  'chatmenu.export': 'Export',
+  'chatmenu.delete': 'Delete',
+  'rename.title': 'Rename conversation',
+  'rename.label': 'Title',
+  'rename.placeholder': 'Conversation title',
+  'deleteChat.title': 'Delete conversation',
+  'deleteChat.desc': 'This will permanently delete “{title}”. This cannot be undone.',
+  'deleteChat.cancel': 'Cancel',
+  'deleteChat.confirm': 'Delete',
+
+  /* User menu */
+  'usermenu.account': 'Account',
+  'usermenu.settings': 'Settings',
+  'usermenu.language': 'Language',
+  'usermenu.theme': 'Theme',
+  'usermenu.logout': 'Sign out',
+  'theme.system': 'System',
+  'theme.light': 'Light',
+  'theme.dark': 'Dark',
+
+  /* Command palette */
+  'cmd.placeholder': 'Search actions or conversations…',
+  'cmd.actions': 'Actions',
+  'cmd.chats': 'Conversations',
+  'cmd.models': 'Models',
+  'cmd.profiles': 'Profiles',
+  'cmd.noResults': 'No results',
+  'cmd.searchChats': 'Search chats',
+  'cmd.changeModel': 'Change model',
+  'cmd.changeProfile': 'Change profile',
+  'cmd.changeThinking': 'Change thinking',
+  'cmd.changeTheme': 'Change theme',
+  'cmd.changeLanguage': 'Change language',
+
+  /* Composer chips */
+  'composer.modelLabel': 'Model',
+  'composer.thinkingLabel': 'Thinking',
+  'composer.profileLabel': 'Profile',
+  'composer.noModel': 'Set up model',
+  'composer.noProfile': 'No profile',
+
   'chat.openMenu': 'Open menu',
   'chat.new': 'New',
   'chat.title': 'New conversation',

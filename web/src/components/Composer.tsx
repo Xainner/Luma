@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Brain, Clapperboard, ImagePlus, Paperclip, Send, Square, X } from 'lucide-react'
-import type { ImageAttachment, ThoughtEffort, VideoAttachment } from '../types'
+import type { ImageAttachment, Profile, ThoughtEffort, VideoAttachment } from '../types'
 import { useI18n } from '../i18n'
 import { prepareImage } from '../lib/images'
 import { prepareVideo } from '../lib/videos'
@@ -15,6 +15,12 @@ interface ComposerProps {
   thinkingEffort: ThoughtEffort
   thinkingModel: string
   onThinkingChange: (effort: ThoughtEffort) => void
+  models: string[]
+  model: string
+  onModelChange: (model: string) => void
+  profiles: Profile[]
+  profileId: string
+  onProfileChange: (id: string) => void
 }
 
 const MAX_IMAGES = MEDIA_LIMITS.maxImages
@@ -27,6 +33,12 @@ export default function Composer({
   thinkingEffort,
   thinkingModel,
   onThinkingChange,
+  models,
+  model,
+  onModelChange,
+  profiles,
+  profileId,
+  onProfileChange,
 }: ComposerProps) {
   const { t } = useI18n()
   const [text, setText] = useState('')
@@ -170,7 +182,7 @@ export default function Composer({
         )}
       </AnimatePresence>
 
-      <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-ink-900/85 p-2.5 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-colors focus-within:border-nebula-400/50">
+      <div className="flex items-end gap-2 rounded-[26px] border border-[var(--border)] bg-[var(--bg-elevated)] p-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.24)] transition-colors focus-within:border-[var(--accent-2)]/50">
         <div className="min-w-0 flex-1">
           {(images.length > 0 || videos.length > 0) && (
             <div className="mb-2 flex flex-wrap gap-2">
@@ -254,7 +266,7 @@ export default function Composer({
                 void addFiles(e.clipboardData.files)
               }
             }}
-            className="block max-h-[180px] w-full resize-none bg-transparent text-[15px] leading-relaxed text-mist-100 placeholder:text-mist-600 focus:outline-none"
+            className="block max-h-[180px] w-full resize-none bg-transparent text-[15px] leading-relaxed text-[var(--text)] placeholder:text-[var(--text-subtle)] focus:outline-none"
           />
         </div>
 
@@ -270,56 +282,112 @@ export default function Composer({
           }}
         />
 
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          aria-label={t('composer.attach')}
-          disabled={isStreaming || (images.length >= MAX_IMAGES && videos.length >= MAX_VIDEOS)}
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl text-mist-500 transition-colors hover:bg-white/5 hover:text-nebula-300 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <Paperclip size={19} />
-        </button>
+        <div className="flex items-center gap-1.5 pt-1">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            aria-label={t('composer.attach')}
+            title={t('composer.attach')}
+            disabled={isStreaming || (images.length >= MAX_IMAGES && videos.length >= MAX_VIDEOS)}
+            className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Paperclip size={17} />
+          </button>
 
-        {isStreaming ? (
-          <button
-            type="button"
-            onClick={onStop}
-            aria-label={t('composer.stop')}
-            className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-red-500/90 text-white shadow-[0_4px_16px_rgba(239,68,68,0.4)] transition-all hover:bg-red-500 active:scale-95"
+          {models.length > 0 ? (
+            <label className="inline-flex min-w-0 items-center">
+              <span className="sr-only">{t('composer.modelLabel')}</span>
+              <select
+                value={model}
+                onChange={(e) => onModelChange(e.target.value)}
+                disabled={isStreaming}
+                title={t('composer.modelLabel')}
+                aria-label={t('composer.modelLabel')}
+                className="max-w-36 cursor-pointer truncate rounded-lg border border-transparent bg-transparent px-1.5 py-1 font-mono text-[11px] font-medium text-[var(--text-muted)] transition-colors hover:border-[var(--border)] hover:text-[var(--text)] focus:outline-none disabled:opacity-50"
+              >
+                {!models.includes(model) && <option value="">{t('composer.noModel')}</option>}
+                {models.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <span className="px-1.5 text-[11px] text-[var(--text-subtle)]">
+              {t('composer.noModel')}
+            </span>
+          )}
+
+          <span
+            className="inline-flex items-center gap-1"
+            title={
+              thinkingModel
+                ? `${t('composer.thinkingLabel')} · ${thinkingModel}`
+                : t('composer.thinkingLabel')
+            }
           >
-            <Square size={15} fill="currentColor" />
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={handleSend}
-            aria-label={t('composer.send')}
-            disabled={!text.trim() && images.length === 0 && videos.length === 0}
-            className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-nebula-500 to-iris-600 text-white shadow-[0_4px_18px_rgba(139,92,246,0.5)] transition-all hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-          >
-            <Send size={17} />
-          </button>
-        )}
-      </div>
-      <p className="mt-1.5 px-1 text-center text-[11px] text-mist-600">{t('composer.hint')}</p>
-      <div className="mt-1 flex items-center justify-center gap-1.5 text-[11px] text-mist-600">
-        <Brain size={12} className="text-nebula-300" aria-hidden="true" />
-        <label htmlFor="composer-thinking" className="sr-only">
-          {t('thinking.label')}
-        </label>
-        <select
-          id="composer-thinking"
-          value={thinkingEffort}
-          onChange={(e) => onThinkingChange(e.target.value as ThoughtEffort)}
-          disabled={isStreaming}
-          title={thinkingModel ? `${t('thinking.label')} · ${thinkingModel}` : t('thinking.label')}
-          className="cursor-pointer rounded-lg border border-white/10 bg-white/5 px-1.5 py-0.5 text-[11px] font-medium text-mist-400 transition-colors hover:border-nebula-400/40 hover:text-mist-100 focus:outline-none disabled:opacity-50"
-        >
-          <option value="off">{t('thinking.off')}</option>
-          <option value="low">{t('thinking.low')}</option>
-          <option value="medium">{t('thinking.medium')}</option>
-          <option value="high">{t('thinking.high')}</option>
-        </select>
+            <Brain size={12} className="shrink-0 text-[var(--accent-2)]" aria-hidden="true" />
+            <label className="inline-flex items-center">
+              <span className="sr-only">{t('composer.thinkingLabel')}</span>
+              <select
+                value={thinkingEffort}
+                onChange={(e) => onThinkingChange(e.target.value as ThoughtEffort)}
+                disabled={isStreaming}
+                aria-label={t('composer.thinkingLabel')}
+                className="cursor-pointer rounded-lg border border-transparent bg-transparent px-1 py-1 text-[11px] font-medium text-[var(--text-muted)] transition-colors hover:border-[var(--border)] hover:text-[var(--text)] focus:outline-none disabled:opacity-50"
+              >
+                <option value="off">{t('thinking.off')}</option>
+                <option value="low">{t('thinking.low')}</option>
+                <option value="medium">{t('thinking.medium')}</option>
+                <option value="high">{t('thinking.high')}</option>
+              </select>
+            </label>
+          </span>
+
+          <label className="hidden min-w-0 items-center sm:inline-flex">
+            <span className="sr-only">{t('composer.profileLabel')}</span>
+            <select
+              value={profileId}
+              onChange={(e) => onProfileChange(e.target.value)}
+              disabled={isStreaming}
+              title={t('composer.profileLabel')}
+              aria-label={t('composer.profileLabel')}
+              className="max-w-28 cursor-pointer truncate rounded-lg border border-transparent bg-transparent px-1.5 py-1 text-[11px] font-medium text-[var(--text-muted)] transition-colors hover:border-[var(--border)] hover:text-[var(--text)] focus:outline-none disabled:opacity-50"
+            >
+              <option value="">{t('composer.noProfile')}</option>
+              {profiles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.emoji} {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <span className="flex-1" />
+
+          {isStreaming ? (
+            <button
+              type="button"
+              onClick={onStop}
+              aria-label={t('composer.stop')}
+              className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--danger)] text-white transition-all hover:brightness-110 active:scale-95"
+            >
+              <Square size={14} fill="currentColor" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSend}
+              aria-label={t('composer.send')}
+              title="Enter"
+              disabled={!text.trim() && images.length === 0 && videos.length === 0}
+              className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-white transition-all hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:bg-[var(--bg-subtle)] disabled:text-[var(--text-subtle)]"
+            >
+              <Send size={16} />
+            </button>
+          )}
+        </div>
       </div>
       {preparing && (
         <p className="mt-1 px-1 text-center text-[11px] text-nebula-300">

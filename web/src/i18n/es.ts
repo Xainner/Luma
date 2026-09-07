@@ -56,6 +56,62 @@ export const es = {
   'sidebar.search': 'Buscar conversaciones…',
   'sidebar.noResults': 'Sin resultados',
 
+  /* Shell v2 */
+  'shell.collapse': 'Colapsar barra',
+  'shell.expand': 'Expandir barra',
+  'shell.toggleSidebar': 'Mostrar/ocultar barra lateral',
+  'nav.chats': 'Chats',
+  'nav.settings': 'Ajustes',
+  'groups.today': 'Hoy',
+  'groups.yesterday': 'Ayer',
+  'groups.week': 'Últimos 7 días',
+  'groups.month': 'Últimos 30 días',
+  'groups.older': 'Anteriores',
+
+  /* Menú de conversación */
+  'chatmenu.open': 'Opciones de la conversación',
+  'chatmenu.rename': 'Renombrar',
+  'chatmenu.export': 'Exportar',
+  'chatmenu.delete': 'Eliminar',
+  'rename.title': 'Renombrar conversación',
+  'rename.label': 'Título',
+  'rename.placeholder': 'Título de la conversación',
+  'deleteChat.title': 'Eliminar conversación',
+  'deleteChat.desc': 'Esta acción eliminará permanentemente “{title}”. No se puede deshacer.',
+  'deleteChat.cancel': 'Cancelar',
+  'deleteChat.confirm': 'Eliminar',
+
+  /* Menú de usuario */
+  'usermenu.account': 'Cuenta',
+  'usermenu.settings': 'Ajustes',
+  'usermenu.language': 'Idioma',
+  'usermenu.theme': 'Tema',
+  'usermenu.logout': 'Cerrar sesión',
+  'theme.system': 'Sistema',
+  'theme.light': 'Claro',
+  'theme.dark': 'Oscuro',
+
+  /* Paleta de comandos */
+  'cmd.placeholder': 'Buscar una acción o conversación…',
+  'cmd.actions': 'Acciones',
+  'cmd.chats': 'Conversaciones',
+  'cmd.models': 'Modelos',
+  'cmd.profiles': 'Perfiles',
+  'cmd.noResults': 'Sin resultados',
+  'cmd.searchChats': 'Buscar chats',
+  'cmd.changeModel': 'Cambiar modelo',
+  'cmd.changeProfile': 'Cambiar perfil',
+  'cmd.changeThinking': 'Cambiar thinking',
+  'cmd.changeTheme': 'Cambiar tema',
+  'cmd.changeLanguage': 'Cambiar idioma',
+
+  /* Chips del composer */
+  'composer.modelLabel': 'Modelo',
+  'composer.thinkingLabel': 'Thinking',
+  'composer.profileLabel': 'Perfil',
+  'composer.noModel': 'Configurar modelo',
+  'composer.noProfile': 'Sin perfil',
+
   /* Chat */
   'chat.openMenu': 'Abrir menú',
   'chat.new': 'Nuevo',
