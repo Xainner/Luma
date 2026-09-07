@@ -2638,12 +2638,12 @@ El rework NO se considera terminado hasta cumplir:
 
 ## Sidebar
 
-- [ ] No contiene selectores de modelo/thinking/perfil.
-- [ ] Historial agrupado.
-- [ ] Menú contextual por chat.
-- [ ] Footer solo de cuenta.
-- [ ] Colapsable en desktop.
-- [ ] Drawer en mobile.
+- [x] No contiene selectores de modelo/thinking/perfil.
+- [x] Historial agrupado.
+- [x] Menú contextual por chat.
+- [x] Footer solo de cuenta.
+- [x] Colapsable en desktop.
+- [x] Drawer en mobile.
 
 ## Chat
 
@@ -2666,10 +2666,10 @@ El rework NO se considera terminado hasta cumplir:
 
 ## Visual
 
-- [ ] Dark y Light.
-- [ ] System theme.
-- [ ] Nebula usado como acento.
-- [ ] Sin auroras fuertes permanentes.
+- [x] Dark y Light.
+- [x] System theme.
+- [x] Nebula usado como acento.
+- [x] Sin auroras fuertes permanentes.
 - [ ] Sin glassmorphism excesivo.
 - [ ] Tipografía y spacing consistentes.
 
