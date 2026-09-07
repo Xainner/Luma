@@ -1,12 +1,30 @@
-import { memo, useState } from 'react'
+import { Suspense, lazy, memo, useEffect, useState, type ComponentProps } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Check, Copy } from 'lucide-react'
 import { useI18n } from '../i18n'
+import { highlightToHtml } from '../lib/highlight'
+import { containsMath } from '../lib/math-detect'
+
+const MathMarkdown = lazy(() => import('./MathMarkdown'))
 
 function CodeBlock({ code, language }: { code: string; language: string }) {
   const { t } = useI18n()
   const [copied, setCopied] = useState(false)
+  const [html, setHtml] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    // Carga lazy del highlighter al aparecer el primer bloque (fetch de una vez).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHtml(null)
+    void highlightToHtml(code, language).then((h) => {
+      if (!cancelled && h) setHtml(h)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [code, language])
 
   async function copy() {
     try {
@@ -34,51 +52,72 @@ function CodeBlock({ code, language }: { code: string; language: string }) {
           {copied ? t('markdown.copied') : t('markdown.copy')}
         </button>
       </div>
-      <pre className="overflow-x-auto p-3.5 font-mono text-[13px] leading-relaxed text-mist-100">
-        <code>{code}</code>
-      </pre>
+      {html ? (
+        <div
+          className="shiki-wrap overflow-x-auto p-3.5 font-mono text-[13px] leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      ) : (
+        <pre className="overflow-x-auto p-3.5 font-mono text-[13px] leading-relaxed text-mist-100">
+          <code>{code}</code>
+        </pre>
+      )}
     </div>
   )
 }
 
+export const markdownComponents: ComponentProps<typeof ReactMarkdown>['components'] = {
+  code({ className, children, ...props }) {
+    const match = /language-(\w+)/.exec(className ?? '')
+    const code = String(children).replace(/\n$/, '')
+    const isBlock = !!match || code.includes('\n')
+    if (!isBlock) {
+      return (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      )
+    }
+    return <CodeBlock code={code} language={match ? match[1] : ''} />
+  },
+  a({ children, ...props }) {
+    return (
+      <a {...props} target="_blank" rel="noreferrer">
+        {children}
+      </a>
+    )
+  },
+  table({ children }) {
+    return (
+      <div className="overflow-x-auto">
+        <table>{children}</table>
+      </div>
+    )
+  },
+}
+
 function Markdown({ children }: { children: string }) {
+  if (containsMath(children)) {
+    return (
+      <div className="md-body">
+        <Suspense fallback={<BaseMarkdown>{children}</BaseMarkdown>}>
+          <MathMarkdown>{children}</MathMarkdown>
+        </Suspense>
+      </div>
+    )
+  }
   return (
     <div className="md-body">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          code({ className, children, ...props }) {
-            const match = /language-(\w+)/.exec(className ?? '')
-            const code = String(children).replace(/\n$/, '')
-            const isBlock = !!match || code.includes('\n')
-            if (!isBlock) {
-              return (
-                <code className={className} {...props}>
-                  {children}
-                </code>
-              )
-            }
-            return <CodeBlock code={code} language={match ? match[1] : ''} />
-          },
-          a({ children, ...props }) {
-            return (
-              <a {...props} target="_blank" rel="noreferrer">
-                {children}
-              </a>
-            )
-          },
-          table({ children }) {
-            return (
-              <div className="overflow-x-auto">
-                <table>{children}</table>
-              </div>
-            )
-          },
-        }}
-      >
-        {children}
-      </ReactMarkdown>
+      <BaseMarkdown>{children}</BaseMarkdown>
     </div>
+  )
+}
+
+function BaseMarkdown({ children }: { children: string }) {
+  return (
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+      {children}
+    </ReactMarkdown>
   )
 }
 

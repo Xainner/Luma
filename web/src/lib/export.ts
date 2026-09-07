@@ -1,4 +1,3 @@
-import { jsPDF } from 'jspdf'
 import type { Chat } from '../types'
 
 function sanitizeFilename(name: string): string {
@@ -39,7 +38,9 @@ export function exportChatJson(chat: Chat): void {
   download(`${sanitizeFilename(chat.title)}.json`, blob)
 }
 
-export function exportChatPdf(chat: Chat): void {
+/** jsPDF va en chunk aparte (dynamic import) para no engordar el bundle inicial. */
+export async function exportChatPdf(chat: Chat): Promise<void> {
+  const { jsPDF } = await import('jspdf')
   const doc = new jsPDF()
   const margin = 14
   let y = 18

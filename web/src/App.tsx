@@ -564,7 +564,10 @@ export default function App() {
             key: 'export-pdf',
             label: `${translate(lang, 'export.menu')} (PDF)`,
             icon: FileDown,
-            onSelect: () => exportChatPdf(activeChat),
+            onSelect: () =>
+              exportChatPdf(activeChat).catch((err) =>
+                toast.error(err instanceof Error ? err.message : translate(lang, 'export.failed')),
+              ),
           },
         ]
       : []),

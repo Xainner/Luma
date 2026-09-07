@@ -188,6 +188,7 @@ export const en: Record<I18nKey, string> = {
   'profiles.unnamed': 'Unnamed',
 
   'export.menu': 'Export conversation',
+  'export.failed': 'Could not generate the PDF.',
   'export.md': 'Markdown',
   'export.json': 'JSON',
   'export.pdf': 'PDF',

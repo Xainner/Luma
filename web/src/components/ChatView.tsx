@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { Virtualizer, type VirtualizerHandle } from 'virtua'
 import { Download, FileJson, FileText, Menu, SquarePen } from 'lucide-react'
 import type { Chat, ImageAttachment, ThoughtEffort, VideoAttachment } from '../types'
 import { useI18n, type I18nKey } from '../i18n'
 import { exportChatJson, exportChatMarkdown, exportChatPdf } from '../lib/export'
+import { toast } from 'sonner'
 import Composer from './Composer'
 import Logo from './Logo'
 import MessageBubble from './MessageBubble'
@@ -45,8 +47,8 @@ export default function ChatView({
   onRegenerate,
 }: ChatViewProps) {
   const { t } = useI18n()
-  const endRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const virtRef = useRef<VirtualizerHandle>(null)
   const [atBottom, setAtBottom] = useState(true)
   const [exportOpen, setExportOpen] = useState(false)
 
@@ -60,7 +62,9 @@ export default function ChatView({
   }
 
   useEffect(() => {
-    if (atBottom) endRef.current?.scrollIntoView({ behavior: isStreaming ? 'auto' : 'smooth' })
+    if (atBottom && messages.length > 0) {
+      virtRef.current?.scrollToIndex(messages.length - 1, { align: 'end' })
+    }
   }, [messages, isStreaming, atBottom])
 
   return (
@@ -103,7 +107,14 @@ export default function ChatView({
                   [
                     { k: 'export.md', icon: FileText, run: () => exportChatMarkdown(chat) },
                     { k: 'export.json', icon: FileJson, run: () => exportChatJson(chat) },
-                    { k: 'export.pdf', icon: FileText, run: () => exportChatPdf(chat) },
+                    {
+                      k: 'export.pdf',
+                      icon: FileText,
+                      run: () =>
+                        exportChatPdf(chat).catch((err) =>
+                          toast.error(err instanceof Error ? err.message : t('export.failed')),
+                        ),
+                    },
                   ] as const
                 ).map((opt) => (
                   <button
@@ -181,28 +192,23 @@ export default function ChatView({
               </motion.div>
             </div>
           ) : (
-            <div className="space-y-6">
-              <AnimatePresence initial={false}>
-                {messages.map((m) => (
-                  <motion.div
-                    key={m.id}
-                    initial={{ opacity: 0, y: 14 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <MessageBubble
-                      message={m}
-                      isLast={m.id === lastId}
-                      isStreaming={isStreaming}
-                      onEdit={onEditMessage}
-                      onDelete={onDeleteMessage}
-                      onRegenerate={onRegenerate}
-                    />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-              <div ref={endRef} />
-            </div>
+            <Virtualizer ref={virtRef} scrollRef={scrollRef} data={messages} bufferSize={800}>
+              {(m, index) => (
+                <div
+                  key={m.id}
+                  className={`mx-auto max-w-3xl px-4 ${index === 0 ? 'pt-6' : 'pt-3'} pb-3`}
+                >
+                  <MessageBubble
+                    message={m}
+                    isLast={m.id === lastId}
+                    isStreaming={isStreaming}
+                    onEdit={onEditMessage}
+                    onDelete={onDeleteMessage}
+                    onRegenerate={onRegenerate}
+                  />
+                </div>
+              )}
+            </Virtualizer>
           )}
         </div>
       </div>

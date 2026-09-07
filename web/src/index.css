@@ -239,6 +239,16 @@ body::after {
   max-width: 100%;
   border-radius: 10px;
 }
+/* Shiki trae su propio <pre> con fondo inline: transparentarlo al tema. */
+.md-body .shiki-wrap .shiki {
+  background: transparent !important;
+  margin: 0;
+  padding: 0;
+}
+.md-body .katex-display {
+  overflow-x: auto;
+  padding: 0.4em 0;
+}
 
 @media (prefers-reduced-motion: reduce) {
   *,

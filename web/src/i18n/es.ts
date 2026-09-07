@@ -199,6 +199,7 @@ export const es = {
 
   /* Exportar */
   'export.menu': 'Exportar conversación',
+  'export.failed': 'No se pudo generar el PDF.',
   'export.md': 'Markdown',
   'export.json': 'JSON',
   'export.pdf': 'PDF',
