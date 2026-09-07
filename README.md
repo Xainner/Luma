@@ -11,7 +11,8 @@
   <img src="https://img.shields.io/badge/Tailwind-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind"/>
   <img src="https://img.shields.io/badge/Fastify-5-000000?style=flat-square&logo=fastify&logoColor=white" alt="Fastify"/>
   <img src="https://img.shields.io/badge/Node.js-22-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js"/>
-  <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL"/>
+  <img src="https://img.shields.io/badge/SQLite-default-003B57?style=flat-square&logo=sqlite&logoColor=white" alt="SQLite"/>
+  <img src="https://img.shields.io/badge/PostgreSQL-opcional-4169E1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL opcional"/>
   <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker Compose"/>
   <img src="https://img.shields.io/badge/OpenAI-compatible-10A37F?style=flat-square&logo=openai&logoColor=white" alt="OpenAI compatible"/>
 
@@ -31,6 +32,8 @@ Hecho para tu LLM local, **sin censura ni restricciones**.
 
 - ⚡ **Streaming en tiempo real** — respuestas token a token con cursor parpadeante
 - 🖼️ **Adjunta imágenes** — arrastra, pega o sube capturas (redimensionadas al vuelo)
+- 🎬 **Adjunta videos** — frames adaptativos (2–12 según duración, con dedupe), thumbnail y subida del original para playback (`POST /api/uploads`, máx 200 MB)
+- 🧠 **Thinking por modelo** — niveles Off/Bajo/Medio/Alto (mapeo verificado contra llama.cpp: solo `enable_thinking`; otros params cuelgan el worker), con pensamiento visible en vivo y por historial
 - 🧠 **Descubrimiento de modelos** — consulta `GET /models` de tu servidor con un clic
 - 💬 **Sidebar con historial** — conversaciones persistentes, renombrado y borrado
 - 🛠️ **Ajustes completos** — URL base, API key, modelo, temperatura, tokens y prompt de sistema
@@ -43,13 +46,36 @@ Hecho para tu LLM local, **sin censura ni restricciones**.
 ```bash
 git clone git@github.com:Xainner/Luma.git
 cd Luma
-cp .env.example .env        # edita POSTGRES_PASSWORD
+cp .env.example .env        # SQLite por defecto; no requiere configurar nada más
 docker compose up -d --build
 ```
 
-La app queda en **`http://localhost:17015`** (BD en `17016`).
+La app queda en **`http://localhost:17015`**.
 
 En el primer arranque se muestra un *onboarding*: pega la URL base de tu servidor (p. ej. `http://192.168.0.3:8021/v1`), opcionalmente tu API key y pulsa **Descubrir modelos** para seleccionar el tuyo.
+
+## 🗄️ Base de datos
+
+La base de datos se elige con `DATABASE_TYPE` en el `.env`:
+
+- **`sqlite`** *(por defecto)* — sin servidor externo. El archivo vive en `DATABASE_PATH` (`./data/luma.db` por defecto; en Docker se monta como volumen en `/app/data`).
+- **`postgres`** *(opcional)* — requiere el servicio `db` y una `DATABASE_URL`.
+
+Con SQLite solo necesitas Docker Compose para la app:
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+Con PostgreSQL:
+
+```bash
+# .env: DATABASE_TYPE=postgres, define POSTGRES_PASSWORD y DATABASE_URL
+docker compose --profile postgres up -d --build
+```
+
+> **Actualizando desde una instalación existente con Postgres:** el cambio a SQLite por defecto solo aplica a instalaciones nuevas. Si ya tenés datos en Postgres (`./db-data`), mantené tu instalación actual seteando `DATABASE_TYPE=postgres` en `.env` antes de actualizar; de lo contrario la app arrancaría con una base SQLite vacía.
 
 ## 👤 Perfiles
 
@@ -70,15 +96,15 @@ Luma/
 ├── web/          Frontend — React 19 + Vite + TypeScript + Tailwind v4 + framer-motion
 │   └── public/   Logo e íconos (logo.png, favicon.png)
 ├── server/       Backend  — Fastify 5 (proxy de streaming SSE, CRUD, modelos)
-│   └── src/db.ts Persistencia — PostgreSQL 16 (config, perfiles, chats JSONB)
-└── docker-compose.yml  App + Postgres, puertos 17015 / 17016
+│   └── src/      Persistencia dual — SQLite (default, better-sqlite3) o PostgreSQL 16 (pg)
+└── docker-compose.yml  App (+ Postgres opcional con perfil `postgres`), puerto 17015
 ```
 
 | Capa        | Tecnología                                    |
 | ----------- | --------------------------------------------- |
 | Frontend    | React 19, Vite 6, TypeScript, Tailwind 4, Motion |
 | Backend     | Fastify 5, Node 22, streaming SSE             |
-| Datos       | PostgreSQL 16 (`app_config`, `chats`)         |
+| Datos       | SQLite (default) o PostgreSQL 16 (`app_config`, `chats`) |
 | Infra       | Docker Compose, `restart: unless-stopped`     |
 
 ### Endpoints
@@ -104,12 +130,15 @@ Luma/
 
 ```bash
 npm install
-# Levanta solo la BD de Postgres (puerto 17016)
-docker compose up -d db
-DATABASE_URL=postgres://luma:<pass>@localhost:17016/luma npm run dev
+npm run dev    # arranca backend (:3001) y frontend Vite (:5173, proxy a /api)
 ```
 
-`npm run dev` inicia el backend (`:3001`) y el frontend Vite (`:5173`, con proxy a `/api`).
+Por defecto usa **SQLite** (`./server/data/luma.db`). Si querés Postgres en local:
+
+```bash
+docker compose --profile postgres up -d db
+DATABASE_TYPE=postgres DATABASE_URL=postgres://luma:change-me@localhost:17016/luma npm run dev
+```
 
 ## 🔄 Actualizar el despliegue
 

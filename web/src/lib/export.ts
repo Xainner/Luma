@@ -22,6 +22,7 @@ export function exportChatMarkdown(chat: Chat): void {
     const role = m.role === 'user' ? '**Usuario**' : '**Asistente**'
     lines.push(`## ${role}`, '', m.content, '')
     for (const img of m.images ?? []) lines.push(`![${img.name}](${img.dataUrl})`, '')
+    for (const vid of m.videos ?? []) lines.push(`> 🎬 Video adjunto: ${vid.name} (${vid.frames.length} frames enviados al modelo)`, '')
   }
   download(`${sanitizeFilename(chat.title)}.md`, new Blob([lines.join('\n')], { type: 'text/markdown' }))
 }

@@ -1,3 +1,5 @@
+export type ThoughtEffort = 'off' | 'low' | 'medium' | 'high'
+
 export interface AppConfig {
   baseUrl: string
   apiKey: string
@@ -7,6 +9,8 @@ export interface AppConfig {
   systemPrompt: string
   profileId: string
   language: Language
+  thinkingEffort: ThoughtEffort
+  modelThinking: Record<string, ThoughtEffort>
 }
 
 export interface Profile {
@@ -22,6 +26,25 @@ export interface ImageAttachment {
   name: string
   mime: string
   dataUrl: string
+  size?: number
+  uploadId?: string
+}
+
+export interface VideoAttachment {
+  id: string
+  name: string
+  mime: string
+  /** Legacy: video completo en base64. Solo lectura para chats viejos; no se escribe nuevo. */
+  dataUrl?: string
+  frames: string[]
+  thumb?: string
+  duration?: number
+  width?: number
+  height?: number
+  size?: number
+  uploadId?: string
+  /** URL efímera de preview (objectURL en memoria). NO persistir ni enviar. */
+  previewUrl?: string
 }
 
 export type Role = 'system' | 'user' | 'assistant'
@@ -31,6 +54,9 @@ export interface ChatMessage {
   role: Role
   content: string
   images?: ImageAttachment[]
+  videos?: VideoAttachment[]
+  /** Razonamiento del modelo (deltas reasoning_content). Solo lectura/historial. */
+  thinking?: string
   createdAt: number
 }
 

@@ -5,9 +5,11 @@ services:
     image: postgres:16-alpine
     container_name: llm-chat-db
     restart: unless-stopped
+    # Solo se levanta si usás PostgreSQL: docker compose --profile postgres up -d
+    profiles: ["postgres"]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-luma}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
       POSTGRES_DB: ${POSTGRES_DB:-luma}
     volumes:
       - ./db-data:/var/lib/postgresql/data
@@ -26,9 +28,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+        required: false
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-luma}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-luma}
+      DATABASE_TYPE: ${DATABASE_TYPE:-sqlite}
+      DATABASE_PATH: /app/data/luma.db
+      DATABASE_URL: postgres://${POSTGRES_USER:-luma}:${POSTGRES_PASSWORD:-change-me}@db:5432/${POSTGRES_DB:-luma}
       HOST: 0.0.0.0
       PORT: 3001
     ports:
       - "17015:3001"
+    volumes:
+      - ./data:/app/data

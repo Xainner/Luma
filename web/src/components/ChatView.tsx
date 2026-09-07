@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Download, FileJson, FileText, Menu, SquarePen } from 'lucide-react'
-import type { Chat, ImageAttachment } from '../types'
+import type { Chat, ImageAttachment, ThoughtEffort, VideoAttachment } from '../types'
 import { useI18n, type I18nKey } from '../i18n'
 import { exportChatJson, exportChatMarkdown, exportChatPdf } from '../lib/export'
 import Composer from './Composer'
@@ -11,7 +11,10 @@ import MessageBubble from './MessageBubble'
 interface ChatViewProps {
   chat: Chat | null
   isStreaming: boolean
-  onSend: (text: string, images: ImageAttachment[]) => Promise<boolean>
+  thinkingEffort: ThoughtEffort
+  thinkingModel: string
+  onThinkingChange: (effort: ThoughtEffort) => void
+  onSend: (text: string, images: ImageAttachment[], videos: VideoAttachment[]) => Promise<boolean>
   onStop: () => void
   onNewChat: () => void
   onOpenSidebar: () => void
@@ -30,6 +33,9 @@ const SUGGESTIONS: I18nKey[] = [
 export default function ChatView({
   chat,
   isStreaming,
+  thinkingEffort,
+  thinkingModel,
+  onThinkingChange,
   onSend,
   onStop,
   onNewChat,
@@ -165,10 +171,10 @@ export default function ChatView({
                 className="mt-8 grid w-full max-w-xl gap-2 sm:grid-cols-2"
               >
                 {SUGGESTIONS.map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => void onSend(t(k), [])}
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => void onSend(t(k), [], [])}
                     className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-mist-400 transition-all hover:border-iris-500/40 hover:bg-iris-500/10 hover:text-mist-100 active:scale-[0.98]"
                   >
                     {t(k)}
@@ -205,7 +211,14 @@ export default function ChatView({
 
       <div className="shrink-0 border-t border-white/8 px-4 pt-3 pb-4">
         <div className="mx-auto max-w-3xl">
-          <Composer onSend={onSend} isStreaming={isStreaming} onStop={onStop} />
+          <Composer
+            onSend={onSend}
+            isStreaming={isStreaming}
+            onStop={onStop}
+            thinkingEffort={thinkingEffort}
+            thinkingModel={thinkingModel}
+            onThinkingChange={onThinkingChange}
+          />
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import type { ImageAttachment } from '../types'
 import { uuid } from './uuid'
+import { MEDIA_LIMITS } from './media-config'
 
 const MAX_DIM = 1080
 
@@ -32,6 +33,11 @@ function downscale(dataUrl: string, maxDim: number): Promise<string> {
 }
 
 export async function prepareImage(file: File): Promise<ImageAttachment> {
+  if (file.size > MEDIA_LIMITS.maxImageMB * 1024 * 1024) {
+    throw new Error(
+      `“${file.name}” supera el límite de ${MEDIA_LIMITS.maxImageMB} MB por imagen.`,
+    )
+  }
   const dataUrl = await fileToDataUrl(file)
   const optimized = await downscale(dataUrl, MAX_DIM)
   const mime = optimized.slice(5, optimized.indexOf(';')) || file.type || 'image/png'
@@ -40,5 +46,6 @@ export async function prepareImage(file: File): Promise<ImageAttachment> {
     name: file.name || 'imagen',
     mime,
     dataUrl: optimized,
+    size: file.size,
   }
 }

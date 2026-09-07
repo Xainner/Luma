@@ -9,7 +9,9 @@ import type {
   ConfigMeta,
   ImageAttachment,
   Profile,
+  ThoughtEffort,
   User,
+  VideoAttachment,
 } from './types'
 import {
   createChat,
@@ -29,6 +31,7 @@ import {
   saveSystemPrompt,
   setConfigScope,
   streamChat,
+  streamEvents,
   updateChat,
   updateProfile,
   wipeData,
@@ -222,6 +225,21 @@ export default function App() {
     await saveConfig(next).catch(() => {})
   }
 
+  /** Nivel de thinking para el modelo actual (override por modelo). */
+  function currentEffort(): ThoughtEffort {
+    if (!config) return 'medium'
+    return config.modelThinking?.[config.model] ?? config.thinkingEffort ?? 'medium'
+  }
+
+  async function handleSetThinking(effort: ThoughtEffort): Promise<void> {
+    if (!config) return
+    const next: AppConfig = config.model
+      ? { ...config, modelThinking: { ...config.modelThinking, [config.model]: effort } }
+      : { ...config, thinkingEffort: effort }
+    setConfig(next)
+    await saveConfig(next).catch(() => {})
+  }
+
   async function handleSelectChat(id: string) {
     setSidebarOpen(false)
     setView('chat')
@@ -274,26 +292,42 @@ export default function App() {
     const controller = new AbortController()
     abortRef.current = controller
     let full = ''
+    let thought = ''
     void (async () => {
       try {
-        for await (const delta of streamChat({
+        for await (const ev of streamEvents({
           messages: contextMessages,
           model: config.model,
           temperature: config.temperature,
           maxTokens: config.maxTokens,
           signal: controller.signal,
         })) {
-          full += delta
-          setActiveChat((prev) =>
-            prev && prev.id === base.id
-              ? {
-                  ...prev,
-                  messages: prev.messages.map((m) =>
-                    m.id === assistantId ? { ...m, content: full } : m,
-                  ),
-                }
-              : prev,
-          )
+          if (ev.kind === 'thinking') {
+            thought += ev.text
+            const snapshot = thought
+            setActiveChat((prev) =>
+              prev && prev.id === base.id
+                ? {
+                    ...prev,
+                    messages: prev.messages.map((m) =>
+                      m.id === assistantId ? { ...m, thinking: snapshot } : m,
+                    ),
+                  }
+                : prev,
+            )
+          } else {
+            full += ev.text
+            setActiveChat((prev) =>
+              prev && prev.id === base.id
+                ? {
+                    ...prev,
+                    messages: prev.messages.map((m) =>
+                      m.id === assistantId ? { ...m, content: full } : m,
+                    ),
+                  }
+                : prev,
+            )
+          }
         }
       } catch (err) {
         if (!controller.signal.aborted) {
@@ -305,7 +339,13 @@ export default function App() {
         const finalMessages = full
           ? [
               ...contextMessages,
-              { id: assistantId, role: 'assistant' as const, content: full, createdAt: Date.now() },
+              {
+                id: assistantId,
+                role: 'assistant' as const,
+                content: full,
+                thinking: thought || undefined,
+                createdAt: Date.now(),
+              },
             ]
           : contextMessages
         const finalChat: Chat = { ...base, updatedAt: Date.now(), messages: finalMessages }
@@ -358,7 +398,7 @@ export default function App() {
     void reloadChats()
   }
 
-  async function handleSend(text: string, images: ImageAttachment[]): Promise<boolean> {
+  async function handleSend(text: string, images: ImageAttachment[], videos: VideoAttachment[]): Promise<boolean> {
     if (isStreaming || streamingRef.current || !config) return false
     if (!config.model) {
       setView('settings')
@@ -381,6 +421,7 @@ export default function App() {
       role: 'user',
       content: text,
       images: images.length ? images : undefined,
+      videos: videos.length ? videos : undefined,
       createdAt: Date.now(),
     }
     const messages = [...chat.messages, userMsg]
@@ -600,7 +641,10 @@ export default function App() {
                 <ChatView
                   chat={activeChat}
                   isStreaming={isStreaming}
-                  onSend={(t, imgs) => handleSend(t, imgs)}
+                  thinkingEffort={currentEffort()}
+                  thinkingModel={config?.model ?? ''}
+                  onThinkingChange={(e) => void handleSetThinking(e)}
+                  onSend={(t, imgs, vids) => handleSend(t, imgs, vids)}
                   onStop={handleStop}
                   onNewChat={handleNewChat}
                   onOpenSidebar={() => setSidebarOpen(true)}

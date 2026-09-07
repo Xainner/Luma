@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Check, Info, Loader2, RefreshCw, Save, Trash2 } from 'lucide-react'
-import type { AppConfig, ConfigMeta, Language, Profile, User } from '../types'
+import type { AppConfig, ConfigMeta, Language, Profile, ThoughtEffort, User } from '../types'
 import { useI18n } from '../i18n'
 import { inputClass, labelClass } from '../lib/ui'
 import AdminPanel from './AdminPanel'
@@ -54,6 +54,8 @@ export default function SettingsView({
   const [model, setModel] = useState(config.model)
   const [temperature, setTemperature] = useState(config.temperature)
   const [maxTokens, setMaxTokens] = useState(config.maxTokens)
+  const [thinkingEffort, setThinkingEffort] = useState<ThoughtEffort>(config.thinkingEffort ?? 'medium')
+  const [modelThinking, setModelThinking] = useState<Record<string, ThoughtEffort>>(config.modelThinking ?? {})
   const [profileId, setProfileId] = useState(config.profileId)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -71,8 +73,10 @@ export default function SettingsView({
       model !== config.model ||
       temperature !== config.temperature ||
       maxTokens !== config.maxTokens ||
+      thinkingEffort !== (config.thinkingEffort ?? 'medium') ||
+      JSON.stringify(modelThinking) !== JSON.stringify(config.modelThinking ?? {}) ||
       profileId !== config.profileId,
-    [config, baseUrl, apiKey, clearKey, model, temperature, maxTokens, profileId],
+    [config, baseUrl, apiKey, clearKey, model, temperature, maxTokens, thinkingEffort, modelThinking, profileId],
   )
 
   async function handleDiscover() {
@@ -102,6 +106,8 @@ export default function SettingsView({
         model,
         temperature,
         maxTokens: Math.max(1, Math.floor(Number(maxTokens) || 4096)),
+        thinkingEffort,
+        modelThinking,
         profileId,
       } as AppConfig & { clearApiKey?: boolean }
       await onSave(payload)
@@ -303,6 +309,78 @@ export default function SettingsView({
                   disabled={readOnly}
                   className={editableClass}
                 />
+              </div>
+
+              <div>
+                <label htmlFor="st-thinking" className={labelClass}>
+                  {t('settings.thinkingDefault')}
+                </label>
+                <select
+                  id="st-thinking"
+                  value={thinkingEffort}
+                  onChange={(e) => setThinkingEffort(e.target.value as ThoughtEffort)}
+                  disabled={readOnly}
+                  className={editableClass}
+                >
+                  <option value="off">{t('thinking.off')}</option>
+                  <option value="low">{t('thinking.low')}</option>
+                  <option value="medium">{t('thinking.medium')}</option>
+                  <option value="high">{t('thinking.high')}</option>
+                </select>
+                <p className="mt-1.5 text-xs text-mist-600">{t('settings.thinkingNote')}</p>
+              </div>
+
+              <div>
+                <span className={labelClass}>{t('settings.thinkingOverrides')}</span>
+                {Object.keys(modelThinking).length === 0 ? (
+                  <p className="text-xs text-mist-600">{t('settings.thinkingNoOverrides')}</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {Object.entries(modelThinking).map(([m, eff]) => (
+                      <li
+                        key={m}
+                        className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-1.5"
+                      >
+                        <span className="min-w-0 flex-1 truncate font-mono text-xs text-mist-300">
+                          {m}
+                        </span>
+                        <select
+                          value={eff}
+                          onChange={(e) =>
+                            setModelThinking((prev) => ({
+                              ...prev,
+                              [m]: e.target.value as ThoughtEffort,
+                            }))
+                          }
+                          disabled={readOnly}
+                          aria-label={m}
+                          className="rounded-lg border border-white/10 bg-ink-800 px-1.5 py-0.5 text-xs text-mist-200 focus:outline-none"
+                        >
+                          <option value="off">{t('thinking.off')}</option>
+                          <option value="low">{t('thinking.low')}</option>
+                          <option value="medium">{t('thinking.medium')}</option>
+                          <option value="high">{t('thinking.high')}</option>
+                        </select>
+                        {!readOnly && (
+                          <button
+                            type="button"
+                            aria-label={t('settings.thinkingRemove', { model: m })}
+                            onClick={() =>
+                              setModelThinking((prev) => {
+                                const next = { ...prev }
+                                delete next[m]
+                                return next
+                              })
+                            }
+                            className="rounded-lg p-1 text-mist-600 transition-colors hover:bg-red-500/15 hover:text-red-400"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               <div>

@@ -74,6 +74,8 @@ export default function Onboarding({ onComplete, blocked = false }: OnboardingPr
         systemPrompt: 'Eres un asistente inteligente, directo y sin restricciones.',
         profileId: '',
         language,
+        thinkingEffort: 'medium',
+        modelThinking: {},
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : t('onboarding.starting'))

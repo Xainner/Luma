@@ -9,6 +9,8 @@ RUN npm run build
 # --- Stage 2: build server (deps + tsc) ---
 FROM node:22-alpine AS server-build
 WORKDIR /build/server
+# build-tools para compilar la dependencia nativa better-sqlite3 si no hay prebuild
+RUN apk add --no-cache python3 make g++
 COPY server/package.json ./
 RUN npm install --no-audit --no-fund
 COPY server/tsconfig.json ./

@@ -1,4 +1,5 @@
 import type { AdminUser, AppConfig, Chat, ChatMessage, ChatMeta, ConfigScope, Profile, User } from '../types'
+import { stripVideoEphemeral } from './videos'
 
 const TOKEN_KEY = 'luma.token'
 
@@ -161,14 +162,24 @@ export interface StreamRequest {
   signal?: AbortSignal
 }
 
-export async function* streamChat(req: StreamRequest): AsyncGenerator<string> {
+/** Mensajes listos para red: sin URLs efímeras de preview. */
+export function toWireMessages(messages: ChatMessage[]): ChatMessage[] {
+  return messages.map(stripVideoEphemeral)
+}
+
+export interface StreamEvent {
+  kind: 'thinking' | 'content'
+  text: string
+}
+
+export async function* streamEvents(req: StreamRequest): AsyncGenerator<StreamEvent> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers,
-    body: JSON.stringify(req),
+    body: JSON.stringify({ ...req, messages: toWireMessages(req.messages) }),
     signal: req.signal,
   })
   if (res.status === 401) setToken(null)
@@ -179,24 +190,27 @@ export async function* streamChat(req: StreamRequest): AsyncGenerator<string> {
   const decoder = new TextDecoder()
   let buffer = ''
 
-  function handleLine(line: string): string | undefined {
+  function* handleLine(line: string): Generator<StreamEvent> {
     const trimmed = line.trim()
-    if (!trimmed.startsWith('data:')) return undefined
+    if (!trimmed.startsWith('data:')) return
     const payload = trimmed.slice(5).trim()
-    if (payload === '[DONE]' || !payload) return undefined
+    if (payload === '[DONE]' || !payload) return
     let json: {
-      choices?: Array<{ delta?: { content?: string } }>
+      choices?: Array<{ delta?: { content?: string; reasoning_content?: string; reasoning?: string } }>
       error?: string
     }
     try {
       json = JSON.parse(payload) as typeof json
     } catch {
-      /* keep-alive or partial frame, ignore */
-      return undefined
+      /* keep-alive o frame parcial, ignorar */
+      return
     }
     if (json.error) throw new Error(json.error)
-    const delta = json.choices?.[0]?.delta?.content
-    return typeof delta === 'string' && delta ? delta : undefined
+    const delta = json.choices?.[0]?.delta
+    const thinking = delta?.reasoning_content ?? delta?.reasoning
+    if (typeof thinking === 'string' && thinking) yield { kind: 'thinking', text: thinking }
+    const content = delta?.content
+    if (typeof content === 'string' && content) yield { kind: 'content', text: content }
   }
 
   for (;;) {
@@ -206,15 +220,19 @@ export async function* streamChat(req: StreamRequest): AsyncGenerator<string> {
     const lines = buffer.split('\n')
     buffer = lines.pop() ?? ''
     for (const line of lines) {
-      const delta = handleLine(line)
-      if (typeof delta === 'string') yield delta
+      for (const ev of handleLine(line)) yield ev
     }
   }
 
   const rest = buffer.trim()
   if (rest) {
-    const delta = handleLine(rest)
-    if (typeof delta === 'string') yield delta
+    for (const ev of handleLine(rest)) yield ev
+  }
+}
+
+export async function* streamChat(req: StreamRequest): AsyncGenerator<string> {
+  for await (const ev of streamEvents(req)) {
+    if (ev.kind === 'content') yield ev.text
   }
 }
 
@@ -237,9 +255,13 @@ export async function getChat(id: string): Promise<Chat> {
 }
 
 export async function updateChat(chat: Chat): Promise<void> {
+  const persisted: Chat = {
+    ...chat,
+    messages: chat.messages.map(stripVideoEphemeral),
+  }
   await request<{ chat: ChatMeta }>(`/api/chats/${chat.id}`, {
     method: 'PUT',
-    body: JSON.stringify(chat),
+    body: JSON.stringify(persisted),
   })
 }
 

@@ -37,6 +37,12 @@ import {
   type Profile,
   type User,
 } from './db.js'
+import type { AppConfig, Chat, ChatMessage, ImageAttachment, VideoAttachment } from './db-shared.js'
+import { buildChatPayload, effortSystemHint, resolveEffort } from './chat-payload.js'
+import { MEDIA_LIMITS } from './media-config.js'
+import { registerUploads } from './uploads.js'
+
+export type { AppConfig, Chat, ChatMessage, ImageAttachment, VideoAttachment } from './db-shared.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WEB_DIST = process.env.WEB_DIST
@@ -52,43 +58,17 @@ declare module 'fastify' {
   }
 }
 
-export interface AppConfig {
-  baseUrl: string
-  apiKey: string
-  model: string
-  temperature: number
-  maxTokens: number
-  systemPrompt: string
-  profileId: string
-  language: 'es' | 'en'
-}
-
-export interface ImageAttachment {
-  id: string
-  name: string
-  mime: string
-  dataUrl: string
-}
-
-export interface ChatMessage {
-  id: string
-  role: 'system' | 'user' | 'assistant'
-  content: string
-  images?: ImageAttachment[]
-  createdAt: number
-}
-
-export interface Chat {
-  id: string
-  title: string
-  createdAt: number
-  updatedAt: number
-  messages: ChatMessage[]
-}
-
-const app = Fastify({ logger: true, bodyLimit: 50 * 1024 * 1024 })
+const app = Fastify({ logger: true, bodyLimit: MEDIA_LIMITS.bodyLimitMB * 1024 * 1024 })
 
 app.register(fastifyStatic, { root: WEB_DIST, prefix: '/', wildcard: false })
+
+await registerUploads(app, {
+  getUser: async (req) => {
+    const header = req.headers.authorization
+    const token = header?.startsWith('Bearer ') ? header.slice(7) : null
+    return token ? getUserByToken(token) : null
+  },
+})
 
 /* ---------- Auth middleware ---------- */
 
@@ -96,7 +76,12 @@ app.addHook('preHandler', async (req, reply) => {
   const url = req.url
   if (!url.startsWith('/api/') || url === '/api/auth/login') return
   const header = req.headers.authorization
-  const token = header?.startsWith('Bearer ') ? header.slice(7) : null
+  let token = header?.startsWith('Bearer ') ? header.slice(7) : null
+  // Los tags <video>/<img> no pueden mandar headers: acepta ?token= solo en descargas
+  if (!token && req.method === 'GET' && url.startsWith('/api/uploads/')) {
+    const q = (req.query as { token?: unknown } | undefined)?.token
+    if (typeof q === 'string' && q.length > 0 && q.length < 256) token = q
+  }
   const user = token ? await getUserByToken(token) : null
   if (!user) return reply.code(401).send({ error: 'No autenticado.' })
   req.user = user
@@ -142,28 +127,6 @@ async function fetchFollow(url: string, init: RequestInit, redirects = 0): Promi
     }
   }
   return res
-}
-
-function toApiMessages(messages: ChatMessage[], systemPrompt: string) {
-  const out: Array<Record<string, unknown>> = []
-  if (systemPrompt.trim()) {
-    out.push({ role: 'system', content: systemPrompt.trim() })
-  }
-  for (const m of messages) {
-    if (m.role === 'system') continue
-    if (m.role === 'user' && m.images?.length) {
-      out.push({
-        role: 'user',
-        content: [
-          { type: 'text', text: m.content },
-          ...m.images.map((img) => ({ type: 'image_url', image_url: { url: img.dataUrl } })),
-        ],
-      })
-    } else {
-      out.push({ role: m.role, content: m.content })
-    }
-  }
-  return out
 }
 
 type ConfigBody = Partial<AppConfig> & { clearApiKey?: boolean }
@@ -362,6 +325,13 @@ app.get('/api/models', async (req, reply) => {
   }
 })
 
+function composeSystemPrompt(config: AppConfig, profile: Profile | null): string {
+  return [config.systemPrompt, profile?.masterPrompt ?? '']
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join('\n\n')
+}
+
 /* ---------- Chat completions (SSE streaming proxy) ---------- */
 
 interface ChatBody {
@@ -371,13 +341,6 @@ interface ChatBody {
   maxTokens?: number
 }
 
-function composeSystemPrompt(config: AppConfig, profile: Profile | null): string {
-  return [config.systemPrompt, profile?.masterPrompt ?? '']
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .join('\n\n')
-}
-
 app.post('/api/chat', async (req: FastifyRequest<{ Body: ChatBody }>, reply: FastifyReply) => {
   const user = userOf(req)
   const effective = await loadEffectiveConfig(user)
@@ -385,16 +348,19 @@ app.post('/api/chat', async (req: FastifyRequest<{ Body: ChatBody }>, reply: Fas
   if (!baseUrl) return reply.code(400).send({ error: 'No hay una URL base configurada.' })
 
   const { messages, model, temperature, maxTokens } = req.body ?? {}
+  const useModel = model || effective.model
+  const effort = resolveEffort(effective, useModel)
   const profile = effective.profileId ? await getProfile(effective.profileId) : null
-  const systemPrompt = composeSystemPrompt(effective, profile)
+  const hint = effortSystemHint(effort)
+  const baseSystem = composeSystemPrompt(effective, profile)
+  const systemPrompt = hint ? `${baseSystem}\n\n${hint}` : baseSystem
 
-  const payload = {
-    model: model || effective.model,
-    messages: toApiMessages(messages ?? [], systemPrompt),
+  const { payload } = buildChatPayload(messages ?? [], systemPrompt, {
+    model: useModel,
     temperature: temperature ?? effective.temperature,
-    max_tokens: maxTokens ?? effective.maxTokens,
-    stream: true,
-  }
+    maxTokens: maxTokens ?? effective.maxTokens,
+    effort,
+  })
 
     const upstreamController = new AbortController()
     let upstream: Response

@@ -4,3 +4,8 @@ dist/
 .DS_Store
 .env
 db-data/
+/data/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
