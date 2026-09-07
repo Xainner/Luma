@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { motion, type Variants } from 'framer-motion'
 import { Loader2, Lock, LogIn, Mail } from 'lucide-react'
 import { useI18n } from '../i18n'
 import { inputClass, labelClass } from '../lib/ui'
@@ -9,16 +8,7 @@ interface LoginProps {
   onLogin: (email: string, password: string) => Promise<void>
 }
 
-const container: Variants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.08 } },
-}
-
-const item: Variants = {
-  hidden: { opacity: 0, y: 16 },
-  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 220, damping: 22 } },
-}
-
+/** Login v2 (§30): tarjeta centrada 400–440px, glow tenue, errores inline. */
 export default function Login({ onLogin }: LoginProps) {
   const { t } = useI18n()
   const [email, setEmail] = useState('')
@@ -40,101 +30,93 @@ export default function Login({ onLogin }: LoginProps) {
   }
 
   return (
-    <div className="relative flex h-full items-center justify-center overflow-hidden px-5 py-8">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-32 -left-24 h-96 w-96 rounded-full bg-iris-600/25 blur-[110px] motion-safe:animate-float-a"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-28 bottom-0 h-[26rem] w-[26rem] rounded-full bg-nebula-500/20 blur-[120px] motion-safe:animate-float-b"
-      />
-
-      <motion.div
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className="relative z-10 w-full max-w-sm"
-      >
-        <motion.div variants={item} className="flex flex-col items-center text-center">
-          <Logo size={220} radius="rounded-3xl" />
-          <h1 className="mt-4 font-display text-3xl font-bold tracking-tight text-mist-100">
+    <div className="flex h-full items-center justify-center overflow-y-auto bg-[var(--bg-app)] px-5 py-8">
+      <div className="w-full max-w-[420px]">
+        <div className="flex flex-col items-center text-center">
+          <span className="relative">
+            <span
+              aria-hidden="true"
+              className="absolute inset-0 -m-4 rounded-full bg-[var(--accent)] opacity-20 blur-2xl"
+            />
+            <Logo size={68} radius="rounded-2xl" className="relative" />
+          </span>
+          <h1 className="mt-4 font-display text-2xl font-bold tracking-tight text-[var(--text)]">
             Luma
           </h1>
-          <p className="mt-1 text-sm text-mist-500">{t('login.title')}</p>
-        </motion.div>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">{t('login.title')}</p>
+        </div>
 
-        <motion.div variants={item} className="mt-8">
-          <form
-            onSubmit={handleSubmit}
-            className="rounded-3xl border border-white/10 bg-ink-900/70 p-7 shadow-[0_20px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl"
-          >
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="lg-email" className={labelClass}>
-                  {t('login.email')}
-                </label>
-                <div className="relative">
-                  <Mail
-                    size={16}
-                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mist-600"
-                  />
-                  <input
-                    id="lg-email"
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder={t('login.emailPlaceholder')}
-                    className={`${inputClass} pl-10`}
-                    required
-                  />
-                </div>
+        <form
+          onSubmit={handleSubmit}
+          className="mt-7 rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.35)]"
+        >
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="lg-email" className={labelClass}>
+                {t('login.email')}
+              </label>
+              <div className="relative">
+                <Mail
+                  size={16}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[var(--text-subtle)]"
+                />
+                <input
+                  id="lg-email"
+                  type="email"
+                  autoComplete="email"
+                  autoFocus
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={t('login.emailPlaceholder')}
+                  className={`${inputClass} pl-10`}
+                  required
+                />
               </div>
-              <div>
-                <label htmlFor="lg-pass" className={labelClass}>
-                  {t('login.password')}
-                </label>
-                <div className="relative">
-                  <Lock
-                    size={16}
-                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mist-600"
-                  />
-                  <input
-                    id="lg-pass"
-                    type="password"
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className={`${inputClass} pl-10`}
-                    required
-                  />
-                </div>
-              </div>
-
-              {error && (
-                <motion.p
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="rounded-xl border border-red-500/25 bg-red-500/10 px-3.5 py-2.5 text-sm text-red-300"
-                >
-                  {error}
-                </motion.p>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading || !email || !password}
-                className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-nebula-500 via-iris-500 to-flare-500 px-4 py-3 text-sm font-bold text-white shadow-[0_8px_30px_rgba(139,92,246,0.45)] transition-all hover:shadow-[0_8px_36px_rgba(139,92,246,0.6)] hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
-              >
-                {loading ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
-                {loading ? t('login.loading') : t('login.submit')}
-              </button>
             </div>
-          </form>
-        </motion.div>
-      </motion.div>
+            <div>
+              <label htmlFor="lg-pass" className={labelClass}>
+                {t('login.password')}
+              </label>
+              <div className="relative">
+                <Lock
+                  size={16}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[var(--text-subtle)]"
+                />
+                <input
+                  id="lg-pass"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className={`${inputClass} pl-10`}
+                  required
+                />
+              </div>
+            </div>
+
+            {error && (
+              <p
+                role="alert"
+                className="rounded-xl border border-[var(--danger)]/25 bg-[var(--danger)]/10 px-3.5 py-2.5 text-sm text-[var(--danger)]"
+              >
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading || !email || !password}
+              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-bold text-white transition-all hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
+              {loading ? t('login.loading') : t('login.submit')}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }
