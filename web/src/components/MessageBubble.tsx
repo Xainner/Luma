@@ -155,7 +155,7 @@ export default function MessageBubble({
                     alt={img.name}
                     width={img.width}
                     height={img.height}
-                    className="w-full rounded-2xl border border-white/10 object-cover shadow-lg transition-transform hover:scale-[1.01]"
+                    className="w-full rounded-2xl border border-white/10 bg-black/40 object-contain shadow-lg transition-transform hover:scale-[1.01]"
                     style={{
                       maxHeight: 280,
                       aspectRatio:
