@@ -22,6 +22,8 @@ export interface ImageAttachment {
   mime: string
   dataUrl: string
   size?: number
+  width?: number
+  height?: number
   /** Id de upload en servidor (fase 2). Si existe, dataUrl puede omitirse al persistir. */
   uploadId?: string
 }

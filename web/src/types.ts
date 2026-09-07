@@ -27,6 +27,8 @@ export interface ImageAttachment {
   mime: string
   dataUrl: string
   size?: number
+  width?: number
+  height?: number
   uploadId?: string
 }
 

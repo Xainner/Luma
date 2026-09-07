@@ -153,8 +153,14 @@ export default function MessageBubble({
                   <img
                     src={img.dataUrl}
                     alt={img.name}
+                    width={img.width}
+                    height={img.height}
                     className="w-full rounded-2xl border border-white/10 object-cover shadow-lg transition-transform hover:scale-[1.01]"
-                    style={{ maxHeight: 280 }}
+                    style={{
+                      maxHeight: 280,
+                      aspectRatio:
+                        img.width && img.height ? `${img.width} / ${img.height}` : undefined,
+                    }}
                   />
                 </button>
               ))}

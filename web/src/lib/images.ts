@@ -13,21 +13,29 @@ function fileToDataUrl(file: File): Promise<string> {
   })
 }
 
-function downscale(dataUrl: string, maxDim: number): Promise<string> {
+interface Scaled {
+  dataUrl: string
+  width: number
+  height: number
+}
+
+function downscale(dataUrl: string, maxDim: number): Promise<Scaled> {
   return new Promise((resolve) => {
     const img = new Image()
     img.onload = () => {
       const scale = Math.min(1, maxDim / Math.max(img.width, img.height))
-      if (scale >= 1) return resolve(dataUrl)
+      const width = Math.max(1, Math.round(img.width * scale))
+      const height = Math.max(1, Math.round(img.height * scale))
+      if (scale >= 1) return resolve({ dataUrl, width, height })
       const canvas = document.createElement('canvas')
-      canvas.width = Math.round(img.width * scale)
-      canvas.height = Math.round(img.height * scale)
+      canvas.width = width
+      canvas.height = height
       const ctx = canvas.getContext('2d')
-      if (!ctx) return resolve(dataUrl)
+      if (!ctx) return resolve({ dataUrl, width, height })
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-      resolve(canvas.toDataURL('image/jpeg', 0.85))
+      resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.85), width, height })
     }
-    img.onerror = () => resolve(dataUrl)
+    img.onerror = () => resolve({ dataUrl, width: 0, height: 0 })
     img.src = dataUrl
   })
 }
@@ -38,12 +46,15 @@ export async function prepareImage(file: File): Promise<ImageAttachment> {
   }
   const dataUrl = await fileToDataUrl(file)
   const optimized = await downscale(dataUrl, MAX_DIM)
-  const mime = optimized.slice(5, optimized.indexOf(';')) || file.type || 'image/png'
+  const mime =
+    optimized.dataUrl.slice(5, optimized.dataUrl.indexOf(';')) || file.type || 'image/png'
   return {
     id: uuid(),
     name: file.name || 'imagen',
     mime,
-    dataUrl: optimized,
+    dataUrl: optimized.dataUrl,
     size: file.size,
+    width: optimized.width || undefined,
+    height: optimized.height || undefined,
   }
 }

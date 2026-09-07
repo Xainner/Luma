@@ -9,6 +9,8 @@ const imageSchema = z.object({
   mime: z.string().max(100),
   dataUrl: z.string().max(40_000_000),
   size: z.number().nonnegative().optional(),
+  width: z.number().int().positive().max(16000).optional(),
+  height: z.number().int().positive().max(16000).optional(),
   uploadId: z.string().max(64).optional(),
 })
 
