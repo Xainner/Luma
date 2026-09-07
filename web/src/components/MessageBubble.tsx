@@ -1,12 +1,29 @@
 import { useState } from 'react'
-import { Copy, Pencil, RefreshCw, Sparkles, Trash2 } from 'lucide-react'
+import { Check, Copy, Maximize2, Pencil, RefreshCw, Sparkles, Trash2 } from 'lucide-react'
 import Lightbox from 'yet-another-react-lightbox'
 import 'yet-another-react-lightbox/styles.css'
-import type { ChatMessage } from '../types'
+import type { ChatMessage, VideoAttachment } from '../types'
 import { useI18n } from '../i18n'
 import { inputClass } from '../lib/ui'
 import { uploadUrl } from '../lib/uploads'
+import { copyText } from '../lib/clipboard'
 import Markdown from './Markdown'
+
+/** Slide de video para el lightbox (el core solo trae imagen). */
+interface VideoSlide {
+  type: 'video'
+  src: string
+  mime: string
+  poster?: string
+  title?: string
+  autoPlay?: boolean
+}
+
+declare module 'yet-another-react-lightbox' {
+  interface SlideTypes {
+    video: VideoSlide
+  }
+}
 
 interface MessageBubbleProps {
   message: ChatMessage
@@ -30,6 +47,48 @@ export default function MessageBubble({
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(message.content)
   const [lightboxIndex, setLightboxIndex] = useState(-1)
+  const [copied, setCopied] = useState(false)
+
+  function videoSrc(vid: VideoAttachment): string | undefined {
+    return vid.previewUrl ?? (vid.uploadId ? uploadUrl(vid.uploadId) : undefined) ?? vid.dataUrl
+  }
+
+  // Slides mixtos: imágenes + videos (los solo-thumb abren el thumb en grande).
+  const imageSlides = (message.images ?? []).map((img) => ({
+    type: 'image' as const,
+    src: img.dataUrl,
+    alt: img.name,
+  }))
+  const videoSlides = (message.videos ?? []).map((vid) => {
+    const src = videoSrc(vid)
+    if (src) {
+      return {
+        type: 'video' as const,
+        src,
+        mime: vid.mime || 'video/mp4',
+        poster: vid.thumb,
+        title: vid.name,
+        autoPlay: true,
+      }
+    }
+    if (vid.thumb) {
+      return { type: 'image' as const, src: vid.thumb, alt: vid.name, title: vid.name }
+    }
+    return null
+  })
+  const slides = [...imageSlides, ...videoSlides.filter((s) => s !== null)]
+  const videoSlideIndex: Array<number | null> = []
+  {
+    let k = imageSlides.length
+    for (const s of videoSlides) videoSlideIndex.push(s ? k++ : null)
+  }
+
+  async function copyResponse() {
+    if (await copyText(message.content)) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1600)
+    }
+  }
 
   function startEdit() {
     setDraft(message.content)
@@ -105,43 +164,84 @@ export default function MessageBubble({
             open={lightboxIndex >= 0}
             close={() => setLightboxIndex(-1)}
             index={lightboxIndex < 0 ? 0 : lightboxIndex}
-            slides={(message.images ?? []).map((img) => ({ src: img.dataUrl, alt: img.name }))}
+            slides={slides}
+            render={{
+              slide: ({ slide }) =>
+                slide.type === 'video' ? (
+                  <video
+                    src={slide.src}
+                    poster={slide.poster}
+                    controls
+                    autoPlay={slide.autoPlay}
+                    playsInline
+                    preload="metadata"
+                    style={{ maxWidth: '100%', maxHeight: '100%' }}
+                  >
+                    <track kind="captions" />
+                  </video>
+                ) : undefined,
+            }}
           />
           {message.videos && message.videos.length > 0 && (
             <div
               className={`mb-1.5 grid gap-1.5 ${message.videos.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}
             >
-              {message.videos.map((vid) => {
-                const src =
-                  vid.previewUrl ??
-                  (vid.uploadId ? uploadUrl(vid.uploadId) : undefined) ??
-                  vid.dataUrl
+              {message.videos.map((vid, j) => {
+                const src = videoSrc(vid)
+                const slideIdx = videoSlideIndex[j]
+                const expand =
+                  slideIdx != null ? (
+                    <button
+                      type="button"
+                      onClick={() => setLightboxIndex(slideIdx)}
+                      aria-label={vid.name}
+                      className="absolute right-2 top-2 rounded-lg bg-black/60 p-1.5 text-white/90 opacity-0 transition-opacity hover:bg-black/80 group-hover:opacity-100"
+                    >
+                      <Maximize2 size={14} />
+                    </button>
+                  ) : null
                 return src ? (
-                  <video
-                    key={vid.id}
-                    src={src}
-                    controls
-                    playsInline
-                    preload="metadata"
-                    className="w-full rounded-2xl border border-white/10 bg-black shadow-lg"
-                    style={{ maxHeight: 280 }}
-                  />
+                  <div key={vid.id} className="group relative">
+                    <video
+                      src={src}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="w-full rounded-2xl border border-white/10 bg-black shadow-lg"
+                      style={{ maxHeight: 280 }}
+                    />
+                    {expand}
+                  </div>
                 ) : (
                   <div
                     key={vid.id}
                     className="relative w-full overflow-hidden rounded-2xl border border-white/10 bg-black shadow-lg"
                     style={{ maxHeight: 280 }}
                   >
-                    {vid.thumb && (
-                      <img src={vid.thumb} alt={vid.name} className="w-full object-cover" />
+                    {slideIdx != null ? (
+                      <button
+                        type="button"
+                        onClick={() => setLightboxIndex(slideIdx)}
+                        aria-label={vid.name}
+                        className="block w-full cursor-zoom-in"
+                      >
+                        {vid.thumb && (
+                          <img src={vid.thumb} alt={vid.name} className="w-full object-cover" />
+                        )}
+                      </button>
+                    ) : (
+                      vid.thumb && (
+                        <img src={vid.thumb} alt={vid.name} className="w-full object-cover" />
+                      )
                     )}
-                    <span className="absolute bottom-2 left-2 rounded-lg bg-black/70 px-2 py-0.5 text-[11px] font-medium text-white/90">
+                    <span className="pointer-events-none absolute bottom-2 left-2 rounded-lg bg-black/70 px-2 py-0.5 text-[11px] font-medium text-white/90">
                       🎬 {vid.name}
                       {typeof vid.duration === 'number' && vid.duration > 0
                         ? ` · ${Math.round(vid.duration)}s`
                         : ''}
                       {vid.frames?.length ? ` · ${vid.frames.length} frames al modelo` : ''}
                     </span>
+                    {expand}
                   </div>
                 )
               })}
@@ -201,11 +301,11 @@ export default function MessageBubble({
           {isLast && !isStreaming && message.content && (
             <button
               type="button"
-              onClick={() => navigator.clipboard.writeText(message.content)}
+              onClick={copyResponse}
               aria-label={t('bubble.copy')}
               className="rounded-lg p-1.5 text-mist-600 transition-colors hover:bg-white/5 hover:text-mist-200"
             >
-              <Copy size={14} />
+              {copied ? <Check size={14} className="text-nebula-400" /> : <Copy size={14} />}
             </button>
           )}
           {isLast && !isStreaming && onRegenerate && (

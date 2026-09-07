@@ -5,6 +5,7 @@ import { Check, Copy } from 'lucide-react'
 import { useI18n } from '../i18n'
 import { highlightToHtml } from '../lib/highlight'
 import { containsMath } from '../lib/math-detect'
+import { copyText } from '../lib/clipboard'
 
 const MathMarkdown = lazy(() => import('./MathMarkdown'))
 
@@ -27,12 +28,9 @@ function CodeBlock({ code, language }: { code: string; language: string }) {
   }, [code, language])
 
   async function copy() {
-    try {
-      await navigator.clipboard.writeText(code)
+    if (await copyText(code)) {
       setCopied(true)
       setTimeout(() => setCopied(false), 1600)
-    } catch {
-      /* ignore */
     }
   }
 

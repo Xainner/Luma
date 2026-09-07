@@ -45,6 +45,7 @@ import SettingsView from './components/SettingsView'
 import Sidebar from './components/Sidebar'
 import { I18nProvider, translate } from './i18n'
 import { exportChatJson, exportChatMarkdown, exportChatPdf } from './lib/export'
+import { stripVideoEphemeral } from './lib/videos'
 import { useUIStore } from './stores/ui'
 import { Toaster, toast } from 'sonner'
 import { uuid } from './lib/uuid'
@@ -442,14 +443,14 @@ export default function App() {
     }
 
     const isFirst = chat.messages.length === 0
-    const userMsg: ChatMessage = {
+    const userMsg: ChatMessage = stripVideoEphemeral({
       id: uuid(),
       role: 'user',
       content: text,
       images: images.length ? images : undefined,
       videos: videos.length ? videos : undefined,
       createdAt: Date.now(),
-    }
+    })
     const messages = [...chat.messages, userMsg]
     const base: Chat = { ...chat, messages, updatedAt: Date.now() }
     if (!base.title && text) base.title = deriveTitle(text)
