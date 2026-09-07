@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Copy, Pencil, RefreshCw, Sparkles, Trash2 } from 'lucide-react'
+import Lightbox from 'yet-another-react-lightbox'
+import 'yet-another-react-lightbox/styles.css'
 import type { ChatMessage } from '../types'
 import { useI18n } from '../i18n'
 import { inputClass } from '../lib/ui'
@@ -27,6 +29,7 @@ export default function MessageBubble({
   const isUser = message.role === 'user'
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(message.content)
+  const [lightboxIndex, setLightboxIndex] = useState(-1)
 
   function startEdit() {
     setDraft(message.content)
@@ -80,17 +83,30 @@ export default function MessageBubble({
             <div
               className={`mb-1.5 grid gap-1.5 ${message.images.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}
             >
-              {message.images.map((img) => (
-                <img
+              {message.images.map((img, i) => (
+                <button
                   key={img.id}
-                  src={img.dataUrl}
-                  alt={img.name}
-                  className="w-full rounded-2xl border border-white/10 object-cover shadow-lg"
-                  style={{ maxHeight: 280 }}
-                />
+                  type="button"
+                  onClick={() => setLightboxIndex(i)}
+                  aria-label={img.name}
+                  className="block w-full cursor-zoom-in rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-nebula-400"
+                >
+                  <img
+                    src={img.dataUrl}
+                    alt={img.name}
+                    className="w-full rounded-2xl border border-white/10 object-cover shadow-lg transition-transform hover:scale-[1.01]"
+                    style={{ maxHeight: 280 }}
+                  />
+                </button>
               ))}
             </div>
           )}
+          <Lightbox
+            open={lightboxIndex >= 0}
+            close={() => setLightboxIndex(-1)}
+            index={lightboxIndex < 0 ? 0 : lightboxIndex}
+            slides={(message.images ?? []).map((img) => ({ src: img.dataUrl, alt: img.name }))}
+          />
           {message.videos && message.videos.length > 0 && (
             <div
               className={`mb-1.5 grid gap-1.5 ${message.videos.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}
